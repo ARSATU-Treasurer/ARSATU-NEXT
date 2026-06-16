@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ARSATU NEXT - log in</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white/80 backdrop-blur-md p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] max-w-sm w-full text-center border border-white">
+        
+        <img src="images/ARSATU NEXT.png" alt="ARSATU NEXT Logo" class="h-24 mx-auto mb-2 object-contain">
+        <p class="text-sm text-gray-500 mb-8 font-medium">ระบบจัดการการเงินค่ายอาสาฯ</p>
+
+        <button id="login-line-btn" class="w-full flex items-center justify-center gap-3 bg-[#06C755] hover:bg-[#05b34c] text-white font-bold py-3.5 px-4 rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all">
+            <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                <path d="M24 10.304c0-5.369-5.383-9.738-12-9.738-6.616 0-12 4.369-12 9.738 0 4.814 4.269 8.846 10.038 9.608.391.084.922.258 1.057.592.121.298.079.758.037 1.08l-.133.79c-.042.247-.194.974.854.533 1.047-.441 5.642-3.328 8.016-5.918 1.4-1.528 2.131-3.235 2.131-5.065z"></path>
+            </svg>
+            เข้าสู่ระบบด้วย LINE
+        </button>
+    </div>
+
+    <button onclick="devLogin()" class="fixed bottom-4 right-4 text-gray-300 hover:text-gray-600 opacity-30 hover:opacity-100 transition-all z-50 outline-none p-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+        </svg>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script>lucide.createIcons();</script>
+    
+</body>
+</html>

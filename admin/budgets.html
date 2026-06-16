@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ARSATU NEXT - ตั้งเพดานงบประมาณ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-gray-50 text-gray-800 pb-20 min-h-screen">
+    <header class="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+        <a href="dashboard.html" class="text-gray-500 hover:text-indigo-600 p-2 bg-gray-50 rounded-full transition-colors"><i data-lucide="arrow-left" class="w-5 h-5"></i></a>
+        <h1 class="text-lg font-bold flex items-center gap-2"><i data-lucide="target" class="text-indigo-500 w-5 h-5"></i> ตั้งเพดานงบประมาณฝ่าย</h1>
+        <div class="w-9"></div>
+    </header>
+
+    <main class="p-5 max-w-4xl mx-auto space-y-6">
+        <div class="flex flex-wrap justify-between items-center gap-3 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+            <h2 class="font-bold text-gray-800">เลือกโครงการที่ต้องการตั้งงบ:</h2>
+            <select id="budget-camp-select" onchange="loadBudgets()" class="border border-gray-200 bg-gray-50 rounded-lg p-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm">
+                <option value="">กำลังโหลด...</option>
+            </select>
+        </div>
+        <div id="budgets-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="col-span-full text-center py-10 text-gray-400"><i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto"></i></div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>lucide.createIcons();</script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/admin-budgets.js"></script>
+</body>
+</html>

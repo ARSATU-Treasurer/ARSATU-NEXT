@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ARSATU NEXT - ประวัติคำขอเบิกเงิน</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 text-gray-800 pb-28 min-h-screen">
+
+    <header class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 py-4 shadow-sm flex items-center justify-between">
+        <a href="dashboard.html" class="text-blue-500 hover:text-blue-700 p-1 bg-blue-50 rounded-full transition-colors"><i data-lucide="arrow-left" class="w-5 h-5"></i></a>
+        <h1 class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">ประวัติการเบิกเงิน</h1>
+        <button onclick="fetchMyHistory()" class="text-blue-500 hover:text-blue-700 p-1 bg-blue-50 rounded-full transition-colors"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+    </header>
+
+    <main class="p-5 max-w-lg mx-auto space-y-4">
+        <div id="history-container" class="space-y-4">
+            <div class="text-center py-10 text-gray-400">
+                <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-2"></i>
+                <p class="text-sm">กำลังโหลดประวัติของคุณ...</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="details-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-[fadeIn_0.2s_ease-out]">
+            <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-blue-50/50 rounded-t-2xl">
+                <h3 class="font-bold text-gray-800 text-base flex items-center gap-2">
+                    <i data-lucide="file-text" class="w-5 h-5 text-blue-600"></i> รายละเอียดคำขอ
+                </h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-200 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="modal-content" class="p-5 overflow-y-auto flex-grow space-y-5 text-sm">
+                </div>
+            <div class="px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex gap-3">
+                <button onclick="closeModal()" class="w-full bg-white hover:bg-gray-100 text-gray-600 text-sm font-bold py-3 rounded-xl border border-gray-200 transition-colors">
+                    ปิดหน้าต่าง
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <nav class="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.03)] z-50">
+        <ul class="flex justify-around items-center h-16 max-w-lg mx-auto">
+            <li>
+                <a href="dashboard.html" class="flex flex-col items-center text-blue-600 transition-colors">
+                    <i data-lucide="home" class="w-6 h-6 mb-1"></i>
+                    <span class="text-[10px] font-medium">หน้าแรก</span>
+                </a>
+            </li>
+            <li>
+                <div class="relative -top-5">
+                    <a href="clearances.html" class="flex items-center justify-center w-14 h-14 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full text-white shadow-lg shadow-blue-500/30 hover:scale-105 transition-transform">
+                        <i data-lucide="file-plus" class="w-6 h-6"></i>
+                    </a>
+                </div>
+            </li>
+            <li>
+                <a href="settings.html" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition-colors w-full">
+                    <i data-lucide="user" class="w-6 h-6 mb-1"></i>
+                    <span class="text-[10px] font-medium">โปรไฟล์</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/history.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

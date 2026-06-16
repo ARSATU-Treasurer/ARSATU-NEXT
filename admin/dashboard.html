@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ARSATU NEXT - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 text-gray-800 pb-20 min-h-screen">
+
+    <header class="bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 py-4 shadow-sm flex items-center justify-between sticky top-0 z-50">
+        <div>
+            <p class="text-sm text-gray-500 mb-0.5"><i data-lucide="shield-check" class="w-4 h-4 inline text-indigo-500"></i> โหมดผู้ดูแลระบบ</p>
+            <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">จัดการระบบหลังบ้าน</h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="../member/dashboard.html" class="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors"><i data-lucide="home" class="w-5 h-5"></i></a>
+            <button onclick="logout()" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"><i data-lucide="log-out" class="w-5 h-5"></i></button>
+        </div>
+    </header>
+
+    <div class="max-w-md mx-auto p-4 pt-6">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-2">
+            <h2 class="text-sm font-bold text-gray-800 mb-4 flex items-center">
+                <i data-lucide="pie-chart" class="w-4 h-4 mr-1.5 text-blue-600"></i> สรุปภาพรวมการเงิน
+            </h2>
+            
+            <div class="mb-5">
+                <div class="flex justify-between text-[11px] mb-1.5 font-bold">
+                    <span class="text-gray-500">ใช้งบไปแล้ว / รายรับรวม</span>
+                    <span id="budget-text" class="text-blue-600">กำลังคำนวณ...</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                    <div id="budget-progress" class="bg-blue-600 h-2.5 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="relative h-48 w-full flex justify-center items-center">
+                <canvas id="expenseChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <main class="p-5 max-w-3xl mx-auto space-y-6 mt-2">
+
+        <!-- 2. กล่องข้อความงานรออนุมัติ (ครอบเฉพาะรายการ) -->
+        <div class="bg-white/90 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-white space-y-4">
+            <h2 class="font-bold text-gray-800 flex items-center gap-2 text-sm sm:text-base border-b border-gray-100 pb-3">
+                <i data-lucide="inbox" class="w-5 h-5 text-indigo-500"></i> กล่องข้อความงานรออนุมัติ
+            </h2>
+            <!-- แท็บคัดแยกประเภทงาน (ย้ายมาไว้ด้านบนสุดของ Main) -->
+        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            <button id="tab-pending_expense" onclick="switchTab('pending_expense')" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-md transition-all whitespace-nowrap border border-transparent">
+                💸 รายการขอเบิกเงิน <span id="badge-exp" class="ml-1 bg-red-500 text-white px-1.5 py-0.5 rounded-full text-[10px] hidden">0</span>
+            </button>
+            <button id="tab-pending_income" onclick="switchTab('pending_income')" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-gray-500 hover:bg-gray-50 border border-gray-200 shadow-sm transition-all whitespace-nowrap">
+                📥 ยอดเงินรับเข้าค่าย <span id="badge-inc" class="ml-1 bg-pink-500 text-white px-1.5 py-0.5 rounded-full text-[10px] hidden">0</span>
+            </button>
+            <button id="tab-approved" onclick="switchTab('approved')" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-gray-500 hover:bg-gray-50 border border-gray-200 shadow-sm transition-all whitespace-nowrap">✅ ดำเนินการแล้ว</button>
+            <button id="tab-rejected" onclick="switchTab('rejected')" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-gray-500 hover:bg-gray-50 border border-gray-200 shadow-sm transition-all whitespace-nowrap">❌ ตีกลับ</button>
+        </div>
+            
+            <div id="requests-container" class="space-y-4">
+                <div class="text-center py-10 text-gray-400"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-2"></i></div>
+            </div>
+        </div>
+
+        <!-- 3. โมดูล เมนูใช้งาน (ทำเหมือนตัวอย่างรูปที่ 1) -->
+        <div>
+            <h2 class="font-bold text-gray-800 mb-3 px-1 text-lg">เมนูใช้งาน</h2>
+            <div class="grid grid-cols-2 gap-4">
+                
+                <a href="donations.html" class="bg-white p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <i data-lucide="heart" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-800 text-sm">สถิติเงินบริจาค</h4>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-2">จัดการยอดและเป้าหมาย</p>
+                </a>
+                
+                <a href="finances.html" class="bg-white p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <i data-lucide="landmark" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-800 text-sm">จัดการบัญชีธนาคาร</h4>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-2">บัญชีกลางและกองทุน</p>
+                </a>
+                
+                <a href="budgets.html" class="bg-white p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <i data-lucide="target" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-800 text-sm">ตั้งงบประมาณฝ่าย</h4>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-2">กำหนดเพดานเบิกจ่าย</p>
+                </a>
+                
+                <button onclick="openManageCampsModal()" class="bg-white p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between text-left outline-none">
+                    <div>
+                        <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <i data-lucide="folder-kanban" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-800 text-sm">จัดการโครงการ</h4>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-2">สร้าง/สลับค่ายทำงาน</p>
+                </button>
+                
+                <!-- ปุ่มทำรายการเบิกแทน ควบ 2 คอลัมน์ -->
+                <a href="proxy-request.html" class="col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-2xl shadow-sm border border-blue-100 hover:shadow-md transition-all group flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-md">
+                        <i data-lucide="user-plus" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-blue-900 text-sm">ทำรายการเบิกแทน</h4>
+                        <p class="text-xs text-blue-700/70 mt-0.5">เบิกเงินแทนสมาชิก หรือจ่ายบุคคลภายนอก</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Modal รายละเอียดรายการ -->
+        <div id="details-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl animate-[fadeIn_0.2s_ease-out]">
+                <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-indigo-50 rounded-t-2xl">
+                    <h3 class="font-bold text-gray-800 text-base flex items-center gap-2"><i data-lucide="file-search" class="w-5 h-5 text-indigo-600"></i> ตรวจสอบรายละเอียด</h3>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <div id="modal-content" class="p-5 overflow-y-auto flex-grow space-y-5 text-sm"></div>
+                <div class="px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex gap-3" id="modal-footer"></div>
+            </div>
+        </div>
+
+        <!-- Modal จัดการโครงการ -->
+        <div id="manage-camps-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+             <div class="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
+                <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-purple-50 rounded-t-2xl">
+                    <h3 class="font-bold text-gray-800 flex items-center gap-2"><i data-lucide="folder-kanban" class="w-5 h-5 text-purple-600"></i> จัดการโครงการ</h3>
+                    <button onclick="closeManageCampsModal()" class="text-gray-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <div class="p-5 overflow-y-auto flex-grow space-y-5 text-sm">
+                    <form id="add-camp-form" class="flex gap-2 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <input type="text" id="new-camp-name" required placeholder="ชื่อโครงการใหม่..." class="flex-grow border border-gray-200 bg-white rounded-lg p-2 outline-none focus:ring-2 focus:ring-purple-500">
+                        <input type="number" id="new-camp-year" required placeholder="ปี" class="w-20 border border-gray-200 bg-white rounded-lg p-2 outline-none text-center">
+                        <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 rounded-lg">เพิ่ม</button>
+                    </form>
+                    <div id="camps-list-container" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal ยืนยันรายการเงินบัญชี -->
+        <div id="approve-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl w-full max-w-sm flex flex-col shadow-2xl">
+                <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-green-50 rounded-t-2xl">
+                    <h3 class="font-bold text-gray-800 text-base flex items-center gap-2"><i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i> ยืนยันรายการบัญชี</h3>
+                    <button onclick="closeApproveModal()" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <div class="p-5 space-y-4 text-sm">
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 text-center shadow-inner">
+                        <p class="text-gray-500 text-xs mb-1" id="approve-title-text">ยอดเงินที่ทำรายการ</p>
+                        <p class="text-3xl font-extrabold text-blue-600" id="approve-amount-display">0.00 ฿</p>
+                    </div>
+
+                    <input type="hidden" id="approve-clearance-id">
+                    <input type="hidden" id="approve-camp-id">
+                    <input type="hidden" id="approve-amount">
+                    <input type="hidden" id="approve-actual-amount">
+                    <input type="hidden" id="approve-mode">
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1"><i data-lucide="building" class="w-3.5 h-3.5 text-blue-500"></i> บัญชีธนาคาร (กลาง) <span class="text-red-500">*</span></label>
+                        <select id="approve-bank-select" class="w-full border border-gray-200 bg-white rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-green-500"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1"><i data-lucide="piggy-bank" class="w-3.5 h-3.5 text-purple-500"></i> ตัดงบจากกองทุน <span class="text-red-500">*</span></label>
+                        <select id="approve-fund-select" class="w-full border border-gray-200 bg-white rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-green-500"></select>
+                    </div>
+                    <div id="admin-slip-upload-section" class="hidden border-t border-gray-100 pt-3 mt-3">
+                        <label class="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1"><i data-lucide="upload-cloud" class="w-3.5 h-3.5 text-blue-500"></i> แนบสลิปโอนเงินจ่ายออก (เหรัญญิก) <span class="text-red-500">*</span></label>
+                        <input type="file" id="admin-transfer-slip" accept="image/*,application/pdf" class="w-full text-xs border rounded-lg p-1.5 cursor-pointer">
+                    </div>
+                </div>
+                <div class="px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex gap-3">
+                    <button onclick="closeApproveModal()" class="flex-1 bg-white border border-gray-200 text-gray-600 font-bold py-3 rounded-xl">ยกเลิก</button>
+                    <button onclick="confirmApproval()" id="btn-confirm-approve" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-3 rounded-xl shadow-sm">ยืนยันทำรายการ</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <nav class="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-md border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.03)] z-50">
+        <ul class="flex justify-around items-center h-16 max-w-lg mx-auto">
+            <li>
+                <a href="dashboard.html" id="nav-admin-home" class="flex flex-col items-center text-gray-400 hover:text-indigo-600 transition-colors">
+                    <i data-lucide="shield-alert" class="w-6 h-6 mb-1"></i>
+                    <span class="text-[10px] font-bold">งานรอตรวจ</span>
+                </a>
+            </li>
+            <li>
+                <div class="relative -top-5">
+                    <button onclick="toggleAdminActionMenu()" class="flex items-center justify-center w-14 h-14 bg-gradient-to-r from-indigo-600 to-blue-600 rounded-full text-white shadow-lg shadow-indigo-600/30 hover:scale-105 transition-transform">
+                        <i data-lucide="layout-grid" class="w-6 h-6"></i>
+                    </button>
+                </div>
+            </li>
+            <li>
+                <a href="../member/dashboard.html" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition-colors">
+                    <i data-lucide="user" class="w-6 h-6 mb-1"></i>
+                    <span class="text-[10px] font-bold">หน้าฝั่งสมาชิก</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- เมนูใช้งาน (Bottom Sheet) เรียงแนวตั้งเหมือนเดิม -->
+    <div id="admin-action-menu-overlay" class="hidden fixed inset-0 bg-black/20 backdrop-blur-[2px] z-[60] flex items-end justify-center">
+        <div id="admin-action-menu-sheet" class="bg-white w-full max-w-lg rounded-t-3xl p-6 pt-4 space-y-3 shadow-2xl animate-[slideUp_0.25s_ease-out]">
+            <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-2"></div>
+            <h3 class="font-extrabold text-center text-gray-800 mb-2 text-sm sm:text-base">เมนูผู้ดูแลระบบ (Admin)</h3>
+            
+            <a href="dashboard.html" class="flex items-center gap-4 p-3 bg-indigo-50 rounded-2xl hover:bg-indigo-100 transition-colors">
+                <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm"><i data-lucide="inbox" class="w-5 h-5"></i></div>
+                <div>
+                    <span class="font-bold text-indigo-900 block text-sm">กล่องงานรออนุมัติ</span>
+                    <span class="text-[11px] text-indigo-700/70 block">ตรวจเช็คใบเบิกเงินทดรองจ่าย/เบิกคืน และยอดเงินเข้า</span>
+                </div>
+            </a>
+            
+            <a href="donations.html" class="flex items-center gap-4 p-3 bg-pink-50 rounded-2xl hover:bg-pink-100 transition-colors">
+                <div class="w-10 h-10 rounded-full bg-pink-500 text-white flex items-center justify-center shrink-0 shadow-sm"><i data-lucide="heart" class="w-5 h-5"></i></div>
+                <div>
+                    <span class="font-bold text-pink-900 block text-sm">จัดการยอดเงินบริจาค</span>
+                    <span class="text-[11px] text-pink-700/70 block">ดูประวัติระดมทุน สถิติเงินสด/เงินโอน และตั้งเป้าหมายค่าย</span>
+                </div>
+            </a>
+            
+            <a href="finances.html" class="flex items-center gap-4 p-3 bg-green-50 rounded-2xl hover:bg-green-100 transition-colors">
+                <div class="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center shrink-0 shadow-sm"><i data-lucide="landmark" class="w-5 h-5"></i></div>
+                <div>
+                    <span class="font-bold text-green-900 block text-sm">จัดการบัญชีกลาง & กองทุน</span>
+                    <span class="text-[11px] text-green-700/70 block">เพิ่ม-แก้ไขบัญชีกลาง โอนเงินข้ามบัญชี และคุมงบฝ่ายต่างๆ</span>
+                </div>
+            </a>
+
+            <button onclick="handleManageCampsClick()" class="w-full flex items-center gap-4 p-3 bg-purple-50 rounded-2xl hover:bg-purple-100 text-left transition-colors outline-none">
+                <div class="w-10 h-10 rounded-full bg-purple-500 text-white flex items-center justify-center shrink-0 shadow-sm"><i data-lucide="folder-kanban" class="w-5 h-5"></i></div>
+                <div>
+                    <span class="font-bold text-purple-900 block text-sm">จัดการโครงการ / ปีการศึกษา</span>
+                    <span class="text-[11px] text-purple-700/70 block">สร้างโครงการค่าย สลับค่ายทำงานปัจจุบัน หรือลบโครงการ</span>
+                </div>
+            </button>
+
+            <!-- เพิ่มเมนู: ทำรายการเบิกแทนใน Bottom Sheet -->
+            <a href="proxy-request.html" class="flex items-center gap-4 p-3 bg-blue-50 rounded-2xl hover:bg-blue-100 transition-colors">
+                <div class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0 shadow-sm"><i data-lucide="user-plus" class="w-5 h-5"></i></div>
+                <div>
+                    <span class="font-bold text-blue-900 block text-sm">ทำรายการเบิกแทน (Proxy)</span>
+                    <span class="text-[11px] text-blue-700/70 block">เบิกเงินแทนสมาชิก หรือจ่ายเงินให้บุคคลภายนอก</span>
+                </div>
+            </a>
+            
+            <button onclick="toggleAdminActionMenu()" class="w-full text-gray-400 py-3 mt-1 font-bold text-sm hover:text-gray-600 transition-colors">ปิดหน้าต่าง</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/admin.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

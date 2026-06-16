@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ARSATU NEXT - หน้าแรก</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 text-gray-800 pb-28 min-h-screen">
+
+    <header class="bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 py-4 shadow-sm rounded-b-3xl flex items-center justify-between sticky top-0 z-50">
+        <div>
+            <p class="text-sm text-gray-500 mb-0.5">สวัสดีครับ 👋</p>
+            <div class="flex items-center gap-2">
+                <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600" id="user-name">กำลังโหลด...</h1>
+                <span id="user-dept" class="hidden text-xs bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-medium shadow-sm"></span>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-3">
+            <a href="settings.html" class="relative group block cursor-pointer" title="ตั้งค่าโปรไฟล์">
+                <div class="w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-md bg-gray-100 group-hover:border-blue-300 transition-all" id="user-avatar-container">
+                    <div class="w-full h-full flex items-center justify-center text-gray-400">
+                        <i data-lucide="user" class="w-6 h-6"></i>
+                    </div>
+                </div>
+                <div class="absolute -bottom-1 -right-1 bg-blue-600 text-white p-1 rounded-full shadow-sm border-2 border-white group-hover:scale-110 transition-transform">
+                    <i data-lucide="settings" class="w-3 h-3"></i>
+                </div>
+            </a>
+            <button onclick="logout()" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors flex flex-col items-center justify-center" title="ออกจากระบบ">
+                <i data-lucide="log-out" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="p-5 max-w-lg mx-auto space-y-6 mt-2">
+
+        <div id="profile-warning" class="hidden bg-red-50 border border-red-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+            <div class="flex gap-3">
+                <div class="text-red-500 shrink-0"><i data-lucide="alert-triangle" class="w-6 h-6"></i></div>
+                <div>
+                    <h3 class="font-bold text-red-800 text-sm">ข้อมูลโปรไฟล์ไม่สมบูรณ์!</h3>
+                    <p class="text-xs text-red-600 mt-1 mb-2">คุณจำเป็นต้องระบุชื่อและฝ่ายให้ครบถ้วนก่อน จึงจะสามารถทำรายการเบิกจ่ายได้</p>
+                    <a href="settings.html" class="inline-block bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">ไปตั้งค่าโปรไฟล์</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg shadow-blue-500/30 relative overflow-hidden">
+            <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white opacity-10"></div>
+            <div class="absolute bottom-0 right-10 -mb-6 w-20 h-20 rounded-full bg-white opacity-10"></div>
+            <div class="relative z-10">
+                <p class="text-blue-100 text-sm font-medium mb-2 flex items-center gap-2">
+                    <i data-lucide="wallet" class="w-4 h-4"></i> ระบบบริหารการเงิน
+                </p>
+                <h2 class="text-xl font-bold drop-shadow-md leading-snug">ชุมนุมค่ายอาสาพัฒนาชนบท<br>มหาวิทยาลัยธรรมศาสตร์</h2>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 rounded-2xl text-white shadow-lg">
+                <p class="text-blue-100 text-[10px] uppercase font-bold tracking-widest">ยอดเงินคงเหลือรวมทุกบัญชี</p>
+                <p class="text-3xl font-extrabold mt-1" id="total-balance-display">0.00 ฿</p>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                <p class="text-gray-400 text-[10px] uppercase font-bold tracking-widest">โครงการปัจจุบัน</p>
+                <p class="text-lg font-bold text-gray-800 mt-1" id="active-camp-display">กำลังโหลด...</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-4 gap-2 mb-6">
+            <div class="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 text-center">
+                <p class="text-[9px] text-gray-400 font-bold uppercase">รอเบิก</p>
+                <p class="text-xl font-extrabold text-orange-500" id="stat-pending">0</p>
+            </div>
+            <div class="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 text-center">
+                <p class="text-[9px] text-gray-400 font-bold uppercase">รอเคลียร์</p>
+                <p class="text-xl font-extrabold text-yellow-600" id="stat-pending-clearance">0</p>
+            </div>
+            <div class="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 text-center">
+                <p class="text-[9px] text-gray-400 font-bold uppercase">รอคืนเงิน</p>
+                <p class="text-xl font-extrabold text-blue-500" id="stat-advance-transferred">0</p>
+            </div>
+            <div class="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 text-center">
+                <p class="text-[9px] text-gray-400 font-bold uppercase">สำเร็จ</p>
+                <p class="text-xl font-extrabold text-emerald-500" id="stat-cleared">0</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-6">
+            <h3 class="font-bold text-gray-800 flex items-center gap-2 mb-4">
+                <i data-lucide="pie-chart" class="w-5 h-5 text-blue-600"></i> ภาพรวมการเงินโครงการ
+            </h3>
+            
+            <div class="mb-5">
+                <div class="flex justify-between text-[11px] mb-1.5 font-bold">
+                    <span class="text-gray-500">ใช้งบไปแล้ว / รายรับรวม</span>
+                    <span id="member-budget-text" class="text-blue-600">กำลังคำนวณ...</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                    <div id="member-budget-progress" class="bg-blue-600 h-2.5 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="relative h-48 w-full flex justify-center items-center">
+                <canvas id="memberExpenseChart"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mt-2 relative">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                    <i data-lucide="heart" class="w-5 h-5 text-pink-500"></i> สรุปยอดบริจาค
+                </h3>
+                <a href="donations.html" class="text-xs font-bold text-pink-500 hover:text-pink-600 transition-colors bg-pink-50 px-3 py-1.5 rounded-xl">
+                    จัดการ
+                </a>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="bg-pink-50 p-4 rounded-2xl border border-pink-100">
+                    <p class="text-[10px] text-pink-600 font-bold uppercase">ยอดรวมทั้งหมด</p>
+                    <p class="text-xl font-extrabold text-pink-700" id="dash-grand-total">0 ฿</p>
+                </div>
+                <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+                    <p class="text-[10px] text-indigo-600 font-bold uppercase">ความคืบหน้าเป้าหมาย</p>
+                    <div class="w-full bg-indigo-100 rounded-full h-2.5 mt-2 overflow-hidden">
+                        <div id="dash-progress-bar" class="bg-indigo-500 h-2.5 rounded-full transition-all" style="width: 0%"></div>
+                    </div>
+                    <p class="text-[9px] text-indigo-600 font-bold mt-1 text-right" id="dash-progress-text">0%</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
+                    <div class="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center"><i data-lucide="banknote" class="w-4 h-4"></i></div>
+                    <div>
+                        <p class="text-[9px] text-gray-400 font-bold">เงินสด</p>
+                        <p class="text-sm font-bold text-gray-700" id="dash-cash-total">0 ฿</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
+                    <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center"><i data-lucide="credit-card" class="w-4 h-4"></i></div>
+                    <div>
+                        <p class="text-[9px] text-gray-400 font-bold">เงินโอน</p>
+                        <p class="text-sm font-bold text-gray-700" id="dash-transfer-total">0 ฿</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white/60 backdrop-blur-sm p-1 rounded-xl">
+            <h3 class="font-bold text-gray-800 mb-2 px-1 text-md flex items-center gap-2">
+                <i data-lucide="layers" class="w-5 h-5 text-indigo-500"></i> เลือกโครงการที่ดำเนินการ
+            </h3>
+            <div class="relative">
+                <select id="project-select" class="w-full border border-gray-200 bg-white rounded-xl p-3.5 outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none text-gray-700 shadow-sm font-medium cursor-pointer">
+                    <option value="overview" class="font-bold text-blue-600">ดูภาพรวมทั้งหมด (Overview)</option>
+                </select>
+                <i data-lucide="chevron-down" class="absolute right-4 top-4 w-5 h-5 text-gray-400 pointer-events-none"></i>
+            </div>
+        </div>
+
+        <div>
+            <h3 class="font-bold text-gray-800 mb-3 px-1 text-lg">เมนูใช้งาน</h3>
+            <div class="grid grid-cols-2 gap-4">
+                
+                <a href="clearances.html" class="bg-white/90 backdrop-blur-sm p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <i data-lucide="file-plus" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-800 text-sm">ส่งคำขอเบิกเงิน</h4>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-2">ยืมทดรองจ่าย/เบิกคืน</p>
+                </a>
+
+                <a href="history.html" class="bg-white/90 backdrop-blur-sm p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <i data-lucide="clock" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-800 text-sm">ประวัติการเบิก</h4>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-2">เช็คสถานะคำขอเงิน</p>
+                </a>
+                
+                <a href="donations.html" class="bg-white/90 backdrop-blur-sm p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between">                    <div>
+                        <div class="w-10 h-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <i data-lucide="heart" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-800 text-sm">แจ้งยอดเงินบริจาค</h4>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-2">สถิติและกล่องระดมทุน</p>
+                </a>
+
+                <a href="other-income.html" class="bg-white/90 backdrop-blur-sm p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between">                    <div>
+                        <div class="w-10 h-10 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-800 text-sm">รายรับ/รายจ่ายอื่น</h4>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-2">ดอกเบี้ย/เงินรับจากสปอนเซอร์</p>
+                </a>
+
+                <a href="ledger.html" class="col-span-2 bg-gradient-to-r from-emerald-50 to-green-50 p-4 rounded-2xl shadow-sm border border-emerald-100 hover:shadow-md transition-all group flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-md">
+                        <i data-lucide="book-open" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-emerald-900 text-sm">สมุดบัญชีกลาง (ความโปร่งใส)</h4>
+                        <p class="text-xs text-emerald-700/70 mt-0.5">ตรวจสอบยอดเงินและหลักฐานเคลื่อนไหว</p>
+                    </div>
+                </a>
+
+                <a href="../admin/dashboard.html" id="admin-menu-btn" class="hidden col-span-2 bg-gradient-to-r from-indigo-50 to-blue-50 p-4 rounded-2xl shadow-sm border border-indigo-100 hover:shadow-md transition-all group flex items-center gap-4">
+                    <div class="relative w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-md">
+                        <i data-lucide="shield-check" class="w-6 h-6"></i>
+                        <span id="admin-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-white leading-none">0</span>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-indigo-900 text-sm">ระบบจัดการหลังบ้าน</h4>
+                        <p class="text-xs text-indigo-700/70 mt-0.5">สำหรับเหรัญญิกและแอดมิน (อนุมัติบิลและเงินเข้า)</p>
+                    </div>
+                </a>
+
+            </div>
+        </div>
+        </div>
+    </main>
+
+    <nav class="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.03)] z-50">
+        <ul class="flex justify-around items-center h-16 max-w-lg mx-auto">
+            <li><a href="dashboard.html" class="flex flex-col items-center text-blue-600 hover:text-blue-600 transition-colors"><i data-lucide="home" class="w-6 h-6 mb-1"></i><span class="text-[10px] font-medium">หน้าแรก</span></a></li>
+            <li>
+                <div class="relative -top-5">
+                    <button onclick="toggleActionMenu()" class="flex items-center justify-center w-14 h-14 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full text-white shadow-lg shadow-blue-500/30 hover:scale-105 transition-transform">
+                        <i data-lucide="plus" class="w-7 h-7"></i>
+                    </button>
+                </div>
+            </li>
+            <li><a href="settings.html" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition-colors w-full"><i data-lucide="user" class="w-6 h-6 mb-1"></i><span class="text-[10px] font-medium">โปรไฟล์</span></a></li>
+        </ul>
+    </nav>
+
+    <div id="action-menu-overlay" class="hidden fixed inset-0 bg-black/20 backdrop-blur-[2px] z-[60] flex items-end justify-center">
+        <div id="action-menu-sheet" class="bg-white w-full max-w-lg rounded-t-3xl p-6 pt-4 space-y-4 shadow-2xl">
+            <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4"></div>
+            <h3 class="font-bold text-center text-gray-800 mb-2">เลือกรายการที่ต้องการ</h3>
+            
+            <a href="clearances.html" class="flex items-center gap-4 p-4 bg-blue-50 rounded-2xl hover:bg-blue-100 transition-colors">
+                <div class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center"><i data-lucide="file-plus" class="w-5 h-5"></i></div>
+                <span class="font-bold text-blue-900">ส่งคำขอเบิกเงิน</span>
+            </a>
+            <a href="history.html" class="flex items-center gap-4 p-4 bg-purple-50 rounded-2xl hover:bg-purple-100 transition-colors">
+                <div class="w-10 h-10 rounded-full bg-purple-500 text-white flex items-center justify-center"><i data-lucide="clock" class="w-5 h-5"></i></div>
+                <span class="font-bold text-purple-900">ดูประวัติคำขอเบิกเงิน</span>
+            </a>
+            <a href="donations.html" class="flex items-center gap-4 p-4 bg-pink-50 rounded-2xl hover:bg-pink-100 transition-colors">
+                <div class="w-10 h-10 rounded-full bg-pink-500 text-white flex items-center justify-center"><i data-lucide="heart" class="w-5 h-5"></i></div>
+                <span class="font-bold text-pink-900">จัดการ / แจ้งยอดเงินบริจาค</span>
+            </a>
+            
+            <a href="../admin/dashboard.html" id="admin-action-link" class="hidden flex items-center gap-4 p-4 bg-emerald-50 rounded-2xl hover:bg-emerald-100 transition-colors">
+                <div class="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center"><i data-lucide="shield-check" class="w-5 h-5"></i></div>
+                <span class="font-bold text-emerald-900">ระบบจัดการหลังบ้าน (Admin)</span>
+            </a>
+
+            <button onclick="toggleActionMenu()" class="w-full text-gray-400 py-3 font-bold text-sm">ปิดหน้าต่าง</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/dashboard.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
