@@ -7,22 +7,20 @@ async function initApp() {
         await liff.init({ liffId: LIFF_ID });
         console.log("2. LIFF เริ่มต้นสำเร็จ");
 
-        const currentPath = window.location.pathname;
-        const isLoginPage = currentPath.endsWith('index.html') || currentPath === '/' || currentPath.endsWith('ARSATU%20NEXT/');
+        // 🌟 แก้ไข: เช็คว่าเป็นหน้า Login หรือไม่ จากปุ่มบนหน้าจอ (ชัวร์ 100% ไม่เกี่ยง URL)
+        const isLoginPage = document.getElementById('login-line-btn') !== null;
 
-        // 🌟 1. เช็ค Session ของ Supabase ก่อนเลย ป้องกัน Infinite Loop
         const { data: { session } } = await supabaseClient.auth.getSession();
         
         if (session) {
             console.log("-> มี Session Supabase อยู่แล้ว ไม่ต้องล็อกอินซ้ำ");
             if (isLoginPage) {
-                // ถ้ามี Session และอยู่หน้า Login ให้พาไป Dashboard ทันที
-                window.location.href = '/member/dashboard.html';
+                // 🌟 แก้ไข: ลบ / ด้านหน้าออก เพื่อให้รองรับ GitHub Pages (Relative Path)
+                window.location.href = 'member/dashboard.html';
             }
-            return; // หยุดการทำงานของ auth.js ตรงนี้
+            return;
         }
 
-        // 🌟 2. ถ้ายังไม่มี Session ให้เข้าสู่กระบวนการล็อกอิน LIFF
         if (liff.isLoggedIn()) {
             console.log("3. พบการล็อกอินใน LIFF");
             if (isLoginPage) {
@@ -76,7 +74,6 @@ async function loginToSupabase(idToken, isLoginPage) {
 
         if (error) throw error;
         
-        // ดักจับกรณี Auth สำเร็จแต่ไม่ได้ Session
         if (!data.session) throw new Error("ไม่พบ Session จากระบบ (เกิดข้อผิดพลาดในการยืนยันตัวตน)");
 
         console.log("5. Supabase ตอบกลับสำเร็จ");
@@ -97,7 +94,8 @@ async function loginToSupabase(idToken, isLoginPage) {
 
         if (isLoginPage) {
             Swal.close();
-            window.location.href = '/member/dashboard.html';
+            // 🌟 แก้ไข: ลบ / ด้านหน้าออก
+            window.location.href = 'member/dashboard.html';
         }
 
     } catch (error) {
@@ -147,7 +145,8 @@ window.devLogin = async function() {
         }
 
         Swal.close();
-        window.location.href = '/admin/dashboard.html'; 
+        // 🌟 แก้ไข: ลบ / ด้านหน้าออก
+        window.location.href = 'admin/dashboard.html'; 
     } catch (error) {
         Swal.fire("เข้าสู่ระบบจำลองล้มเหลว", error.message, 'error');
     }
