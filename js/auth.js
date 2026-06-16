@@ -7,18 +7,19 @@ async function initApp() {
         await liff.init({ liffId: LIFF_ID });
         console.log("2. LIFF เริ่มต้นสำเร็จ");
 
-        // 🌟 แก้ไข: เช็คว่าเป็นหน้า Login หรือไม่ จากปุ่มบนหน้าจอ (ชัวร์ 100% ไม่เกี่ยง URL)
-        const isLoginPage = document.getElementById('login-line-btn') !== null;
+        // 🌟 แก้ไข: เช็คว่าเป็นหน้า Login หรือไม่ จาก URL (ชัวร์ 100% บน GitHub Pages)
+        const currentPath = window.location.pathname;
+        const isLoginPage = currentPath.endsWith('/') || currentPath.endsWith('index.html');
 
         const { data: { session } } = await supabaseClient.auth.getSession();
         
         if (session) {
-            console.log("-> มี Session Supabase อยู่แล้ว ไม่ต้องล็อกอินซ้ำ");
+            console.log("-> มี Session Supabase อยู่แล้ว");
             if (isLoginPage) {
-                // 🌟 แก้ไข: ลบ / ด้านหน้าออก เพื่อให้รองรับ GitHub Pages (Relative Path)
+                console.log("-> กำลังพาไปหน้า Dashboard...");
                 window.location.href = 'member/dashboard.html';
             }
-            return;
+            return; // หยุดการทำงานตรงนี้ เพื่อไม่ให้โหลดปุ่มซ้ำซ้อน
         }
 
         if (liff.isLoggedIn()) {
@@ -94,7 +95,6 @@ async function loginToSupabase(idToken, isLoginPage) {
 
         if (isLoginPage) {
             Swal.close();
-            // 🌟 แก้ไข: ลบ / ด้านหน้าออก
             window.location.href = 'member/dashboard.html';
         }
 
@@ -145,7 +145,6 @@ window.devLogin = async function() {
         }
 
         Swal.close();
-        // 🌟 แก้ไข: ลบ / ด้านหน้าออก
         window.location.href = 'admin/dashboard.html'; 
     } catch (error) {
         Swal.fire("เข้าสู่ระบบจำลองล้มเหลว", error.message, 'error');
