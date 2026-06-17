@@ -15,10 +15,9 @@
             <a href="dashboard.html" class="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-full transition-colors"><i data-lucide="arrow-left" class="w-5 h-5"></i></a>
             <h1 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="book-open" class="text-emerald-600 w-5 h-5"></i> สมุดบัญชีกลาง</h1>
         </div>
-        <span id="active-camp-badge" class="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 font-bold px-3 py-1 rounded-full shadow-sm truncate max-w-[120px] md:max-w-xs">กำลังโหลด...</span>
     </header>
     
-    <main class="p-5 max-w-4xl mx-auto space-y-6 mt-2">
+    <main class="p-5 max-w-4xl mx-auto space-y-4 mt-2">
         
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/60 backdrop-blur-sm p-2 rounded-2xl border border-white shadow-sm">
             <div class="flex gap-2 w-full sm:w-auto">
@@ -37,6 +36,34 @@
                 <button onclick="exportPDF()" class="flex-1 sm:flex-none text-xs bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-1.5 shadow-md">
                     <i data-lucide="file-text" class="w-4 h-4"></i> โหลด PDF
                 </button>
+            </div>
+        </div>
+
+        <div id="ledger-filters" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2 animate-[slideDown_0.2s_ease-out]">
+            <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5"><i data-lucide="folder" class="w-3 h-3 inline"></i> เลือกโครงการ</label>
+                <select id="camp-filter" onchange="handleFilterChange()" class="w-full border-none bg-gray-50 rounded-xl p-2.5 text-sm font-bold text-emerald-700 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer transition-colors hover:bg-gray-100">
+                    <option value="">กำลังโหลด...</option>
+                </select>
+            </div>
+            <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5"><i data-lucide="users" class="w-3 h-3 inline"></i> กรองตามฝ่าย</label>
+                <select id="dept-filter" onchange="handleFilterChange()" class="w-full border-none bg-gray-50 rounded-xl p-2.5 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer transition-colors hover:bg-gray-100">
+                    <option value="all">ดูทุกฝ่ายรวมกัน</option>
+                    <option value="อำนวยการ">อำนวยการ</option>
+                    <option value="เลขานุการ">เลขานุการ</option>
+                    <option value="เหรัญญิก">เหรัญญิก</option>
+                    <option value="ทะเบียน">ทะเบียน</option>
+                    <option value="โครงงาน">โครงงาน</option>
+                    <option value="อุปกรณ์">อุปกรณ์</option>
+                    <option value="สถานที่">สถานที่</option>
+                    <option value="สวัสดิการ">สวัสดิการ</option>
+                    <option value="สัมพันธ์ชาวบ้าน">สัมพันธ์ชาวบ้าน</option>
+                    <option value="PR">PR (ประชาสัมพันธ์)</option>
+                    <option value="สปอนเซอร์">สปอนเซอร์</option>
+                    <option value="สันทนาการ">สันทนาการ</option>
+                    <option value="ทั่วไป">ทั่วไป (ส่วนกลาง)</option>
+                </select>
             </div>
         </div>
 
@@ -133,7 +160,7 @@
 
             <div class="relative z-10">
                 <div class="flex justify-center mb-2">
-                    <img src="../images/arsatu_ls.png" alt="Logo" class="h-28 object-contain">
+                    <img src="../images/arsatu-ls.png" alt="Logo" class="h-28 object-contain">
                 </div>
                 
                 <div class="text-center font-bold text-xl leading-relaxed mb-6">
@@ -183,6 +210,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>

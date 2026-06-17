@@ -2,16 +2,15 @@
 
 let currentLedgerView = 'main'; // ค่าเริ่มต้นเป็นสมุดบัญชีรวมทั้งหมด
 let cachedProfileName = 'ไม่ระบุชื่อ';
-let currentCampId = null;
+let allCamps = []; // เก็บรายชื่อค่ายทั้งหมด
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 🌟 1. เตรียมข้อมูลพื้นฐาน (Profile, Role, Camp)
+    // 🌟 1. เตรียมข้อมูลพื้นฐาน (Profile, Role)
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
         const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
         if (profile) {
             cachedProfileName = profile.full_name || 'ไม่ระบุชื่อ';
-            // ปลดล็อกเมนูแอดมินถ้ามีสิทธิ์
             if (profile.role === 'admin') {
                 const adminLink = document.getElementById('admin-action-link');
                 if (adminLink) adminLink.classList.remove('hidden');
@@ -19,19 +18,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    const { data: camp } = await supabaseClient.from('camps').select('*').eq('is_active', true).single();
-    if (camp) {
-        currentCampId = camp.id;
-        const badge = document.getElementById('active-camp-badge');
-        if (badge) badge.innerText = `โครงการปัจจุบัน: ${camp.name}`;
-    }
+    // 🌟 2. ดึงรายชื่อค่ายทั้งหมดมาใส่ Dropdown
+    await loadCampsForLedger();
 
-    // 🌟 2. สั่งโหลดข้อมูลตารางและบัญชี
+    // 🌟 3. สั่งโหลดข้อมูลตารางและบัญชี
     fetchGlobalBanks();
     fetchLedgerTransactions();
 });
 
 // ================= ระบบแท็บและการแสดงผล (UI State) ================= //
+
+async function loadCampsForLedger() {
+    const campSelect = document.getElementById('camp-filter');
+    try {
+        const { data: camps, error } = await supabaseClient.from('camps').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+
+        allCamps = camps || [];
+        
+        if (allCamps.length > 0) {
+            campSelect.innerHTML = allCamps.map(c => 
+                `<option value="${c.id}" ${c.is_active ? 'selected' : ''}>${c.name} ${c.is_active ? '(ปัจจุบัน)' : ''}</option>`
+            ).join('');
+        } else {
+            campSelect.innerHTML = '<option value="">ไม่มีข้อมูลโครงการ</option>';
+        }
+    } catch (e) {
+        console.error("Load camps error:", e);
+    }
+}
 
 window.switchLedgerTab = function(tabType) {
     currentLedgerView = tabType;
@@ -39,17 +54,29 @@ window.switchLedgerTab = function(tabType) {
     const btnMain = document.getElementById('tab-main');
     const btnProject = document.getElementById('tab-project');
     const exportDiv = document.getElementById('project-export-actions');
+    const filtersDiv = document.getElementById('ledger-filters');
+    const banksDiv = document.getElementById('global-banks-container');
     
     if(tabType === 'main') {
         btnMain.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-emerald-600 shadow-sm border border-gray-100 transition-all";
         btnProject.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all";
+        
         if(exportDiv) exportDiv.classList.add('hidden');
+        if(filtersDiv) filtersDiv.classList.add('hidden'); // ซ่อนตัวกรอง
+        if(banksDiv) banksDiv.classList.remove('hidden');  // โชว์ยอดบัญชีธนาคาร
     } else {
         btnProject.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-emerald-600 shadow-sm border border-gray-100 transition-all";
         btnMain.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all";
+        
         if(exportDiv) exportDiv.classList.remove('hidden');
+        if(filtersDiv) filtersDiv.classList.remove('hidden'); // โชว์ตัวกรองค่าย/ฝ่าย
+        if(banksDiv) banksDiv.classList.add('hidden'); // ซ่อนยอดบัญชีธนาคาร
     }
     
+    fetchLedgerTransactions(); // รีโหลดตารางใหม่ตามแท็บ
+};
+
+window.handleFilterChange = function() {
     fetchLedgerTransactions();
 };
 
@@ -60,7 +87,6 @@ function toggleActionMenu() {
 
 // ================= โหลดข้อมูลสมุดบัญชี (Core Ledger) ================= //
 
-// 1. โหลดข้อมูลยอดเงินรวม (บัญชีส่วนกลาง)
 async function fetchGlobalBanks() {
     const container = document.getElementById('global-banks-container');
     try {
@@ -75,8 +101,8 @@ async function fetchGlobalBanks() {
         container.innerHTML = banks.map(b => {
             const hexColor = b.color || '#3B82F6'; 
             return `
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
-                <div class="w-12 h-12 rounded-full border flex items-center justify-center shrink-0" 
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full border-2 flex items-center justify-center shrink-0" 
                      style="background-color: ${hexColor}15; border-color: ${hexColor}30; color: ${hexColor};">
                     <i data-lucide="building" class="w-6 h-6"></i>
                 </div>
@@ -92,11 +118,10 @@ async function fetchGlobalBanks() {
     } catch (err) { console.error("Bank Error:", err); }
 }
 
-// 2. โหลดรายการเคลื่อนไหวจากตาราง Transactions
 async function fetchLedgerTransactions() {
     const container = document.getElementById('ledger-container');
     container.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-2"></i> กำลังโหลดรายการ...</td></tr>`;
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
     try {
         let query = supabaseClient
@@ -104,20 +129,33 @@ async function fetchLedgerTransactions() {
             .select(`*, clearances (purpose, department)`)
             .order('created_at', { ascending: false });
 
-        // 🌟 ถ้าอยู่แท็บ Project ให้กรองเฉพาะค่ายปัจจุบัน
-        if (currentLedgerView === 'project' && currentCampId) {
-            query = query.eq('camp_id', currentCampId);
+        let selectedDept = 'all';
+
+        // 🌟 ถ้าอยู่แท็บ Project ให้กรองเฉพาะค่ายที่เลือก
+        if (currentLedgerView === 'project') {
+            const selectedCampId = document.getElementById('camp-filter')?.value;
+            selectedDept = document.getElementById('dept-filter')?.value || 'all';
+
+            if (selectedCampId) {
+                query = query.eq('camp_id', selectedCampId);
+            }
         }
 
         const { data: trans, error } = await query;
         if (error) throw error;
 
-        if (!trans || trans.length === 0) {
-            container.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400 text-xs">ยังไม่มีรายการบันทึกในสมุดบัญชีนี้</td></tr>`;
+        // 🌟 กรองตามฝ่ายด้วย JavaScript (หลีกเลี่ยงบั๊ก Inner Join ของรายการที่ไม่ได้เบิกผ่านบิล)
+        let filteredTrans = trans;
+        if (currentLedgerView === 'project' && selectedDept !== 'all') {
+            filteredTrans = trans.filter(t => t.clearances && t.clearances.department === selectedDept);
+        }
+
+        if (!filteredTrans || filteredTrans.length === 0) {
+            container.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400 text-xs">ยังไม่มีรายการบันทึกในสมุดบัญชีนี้ หรือไม่พบข้อมูลตามฝ่ายที่กรอง</td></tr>`;
             return;
         }
 
-        container.innerHTML = trans.map(t => {
+        container.innerHTML = filteredTrans.map(t => {
             const isIncome = t.transaction_type === 'income'; 
             const dept = t.clearances?.department || '-';
             const purpose = t.clearances?.purpose || t.description || 'รายการเบิกจ่าย';
@@ -138,18 +176,19 @@ async function fetchLedgerTransactions() {
                     <div class="text-xs font-bold text-gray-800 whitespace-normal min-w-[200px]">[${typeLabel}] ${purpose}</div>
                     ${billIdHtml}
                 </td>
-                <td class="p-4 text-xs text-gray-600 align-top">${dept}</td>
-                <td class="p-4 text-right font-bold text-green-600 text-xs align-top">${isIncome ? '+' + parseFloat(t.amount).toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
-                <td class="p-4 text-right font-bold text-red-600 text-xs align-top">${!isIncome ? '-' + parseFloat(t.amount).toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
+                <td class="p-4 text-xs text-gray-600 font-bold align-top">${dept}</td>
+                <td class="p-4 text-right font-bold text-emerald-600 text-xs align-top">${isIncome ? '+' + parseFloat(t.amount).toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
+                <td class="p-4 text-right font-bold text-rose-600 text-xs align-top">${!isIncome ? '-' + parseFloat(t.amount).toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
                 <td class="p-4 text-center align-top">
                     ${targetId ? `
-                    <button onclick="viewLedgerDetails(${targetId})" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg">
+                    <button onclick="viewLedgerDetails(${targetId})" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg border border-blue-100 transition-colors">
                         <i data-lucide="eye" class="w-4 h-4"></i>
                     </button>` : `<span class="text-gray-300 text-[10px]">ไม่มีข้อมูล</span>`}
                 </td>
             </tr>`;
         }).join('');
-        lucide.createIcons();
+        
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     } catch (err) {
         console.error("Ledger Error:", err);
         container.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-500 text-xs">Error: ${err.message}</td></tr>`;
@@ -164,7 +203,7 @@ window.viewLedgerDetails = async function(clearanceId) {
     
     modal.classList.remove('hidden');
     content.innerHTML = '<div class="text-center py-10 text-gray-400"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto"></i></div>';
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
     try {
         const { data: clearance, error: clErr } = await supabaseClient.from('clearances').select('*, profiles!user_id(full_name), camps(name)').eq('id', clearanceId).single();
@@ -186,31 +225,31 @@ window.viewLedgerDetails = async function(clearanceId) {
         if (receiptFiles.length > 0) {
             evidenceHTML += `<div class="mb-3"><p class="text-[10px] font-bold text-gray-500 mb-1 uppercase tracking-wider">ใบเสนอราคา / ใบเสร็จ (ผู้ขอเบิก)</p><div class="grid grid-cols-2 gap-2">`;
             evidenceHTML += receiptFiles.map(url => url.toLowerCase().includes('.pdf') 
-                ? `<a href="${url}" target="_blank" class="p-2 bg-red-50 text-red-600 rounded text-[10px] font-bold border border-red-100 text-center flex flex-col items-center justify-center"><i data-lucide="file-text" class="w-4 h-4 mb-1"></i> ดู PDF</a>` 
-                : `<a href="${url}" target="_blank" class="block rounded border border-gray-200 overflow-hidden"><img src="${url}" class="w-full h-24 object-cover"></a>`
+                ? `<a href="${url}" target="_blank" class="p-2 bg-red-50 text-red-600 rounded text-[10px] font-bold border border-red-100 text-center flex flex-col items-center justify-center hover:bg-red-100"><i data-lucide="file-text" class="w-4 h-4 mb-1"></i> ดู PDF</a>` 
+                : `<a href="${url}" target="_blank" class="block rounded border border-gray-200 overflow-hidden hover:opacity-80 transition-opacity"><img src="${url}" class="w-full h-24 object-cover"></a>`
             ).join('');
             evidenceHTML += `</div></div>`;
         }
 
-        if (clearance.advance_slip_url) evidenceHTML += `<div class="mb-3"><p class="text-[10px] font-bold text-blue-500 mb-1 uppercase tracking-wider">สลิปโอนเงินทดรองจ่าย (เหรัญญิก)</p><a href="${clearance.advance_slip_url}" target="_blank" class="block w-1/2 rounded border border-blue-200 overflow-hidden shadow-sm"><img src="${clearance.advance_slip_url}" class="w-full h-24 object-cover"></a></div>`;
-        if (clearance.refund_slip_url) evidenceHTML += `<div class="mb-3"><p class="text-[10px] font-bold text-green-500 mb-1 uppercase tracking-wider">สลิปคืนเงินทอนชุมนุม (ผู้ขอเบิก)</p><a href="${clearance.refund_slip_url}" target="_blank" class="block w-1/2 rounded border border-green-200 overflow-hidden shadow-sm"><img src="${clearance.refund_slip_url}" class="w-full h-24 object-cover"></a></div>`;
-        if (clearance.reimburse_slip_url) evidenceHTML += `<div class="mb-3"><p class="text-[10px] font-bold text-purple-500 mb-1 uppercase tracking-wider">สลิปโอนเงินชดเชย (เหรัญญิก)</p><a href="${clearance.reimburse_slip_url}" target="_blank" class="block w-1/2 rounded border border-purple-200 overflow-hidden shadow-sm"><img src="${clearance.reimburse_slip_url}" class="w-full h-24 object-cover"></a></div>`;
+        if (clearance.advance_slip_url) evidenceHTML += `<div class="mb-3"><p class="text-[10px] font-bold text-blue-500 mb-1 uppercase tracking-wider">สลิปโอนเงินทดรองจ่าย (เหรัญญิก)</p><a href="${clearance.advance_slip_url}" target="_blank" class="block w-1/2 rounded border border-blue-200 overflow-hidden shadow-sm hover:opacity-80"><img src="${clearance.advance_slip_url}" class="w-full h-24 object-cover"></a></div>`;
+        if (clearance.refund_slip_url) evidenceHTML += `<div class="mb-3"><p class="text-[10px] font-bold text-green-500 mb-1 uppercase tracking-wider">สลิปคืนเงินทอนชุมนุม (ผู้ขอเบิก)</p><a href="${clearance.refund_slip_url}" target="_blank" class="block w-1/2 rounded border border-green-200 overflow-hidden shadow-sm hover:opacity-80"><img src="${clearance.refund_slip_url}" class="w-full h-24 object-cover"></a></div>`;
+        if (clearance.reimburse_slip_url) evidenceHTML += `<div class="mb-3"><p class="text-[10px] font-bold text-purple-500 mb-1 uppercase tracking-wider">สลิปโอนเงินชดเชย (เหรัญญิก)</p><a href="${clearance.reimburse_slip_url}" target="_blank" class="block w-1/2 rounded border border-purple-200 overflow-hidden shadow-sm hover:opacity-80"><img src="${clearance.reimburse_slip_url}" class="w-full h-24 object-cover"></a></div>`;
 
         const itemsHTML = (items || []).map((item, i) => `
-            <div class="flex justify-between items-center py-1.5 border-b border-gray-50 text-xs">
+            <div class="flex justify-between items-center py-2 border-b border-gray-100 border-dashed text-xs">
                 <span>${i + 1}. ${item.description} (x${item.quantity})</span>
                 <span class="font-bold">${parseFloat(item.amount).toLocaleString('th-TH')} ฿</span>
             </div>
         `).join('');
 
         content.innerHTML = `
-            <div class="space-y-2 border-b pb-4">
-                <p class="text-xs text-gray-500">โครงการ: <b class="text-gray-800">${clearance.camps.name}</b></p>
+            <div class="space-y-2 border-b border-gray-100 pb-4">
+                <p class="text-xs text-gray-500">โครงการ: <b class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">${clearance.camps.name}</b></p>
                 <p class="text-xs text-gray-500">หัวข้อ: <b class="text-gray-800">${clearance.purpose}</b></p>
                 <p class="text-xs text-gray-500">ผู้ขอเบิก: <b class="text-gray-800">${clearance.unregistered_name || clearance.profiles?.full_name || 'ไม่ระบุชื่อ'}</b></p>
             </div>
             <div class="mt-4">
-                <p class="text-xs font-bold text-gray-700 mb-2 bg-gray-100 p-2 rounded">รายการที่เบิก</p>
+                <p class="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">รายการที่เบิก</p>
                 ${itemsHTML}
                 <div class="mt-4 text-right">
                     <p class="text-xs text-gray-500">ยอดที่ทำการอนุมัติ</p>
@@ -218,11 +257,11 @@ window.viewLedgerDetails = async function(clearanceId) {
                 </div>
             </div>
             <div class="pt-2 mt-4 border-t border-gray-100">
-                <p class="text-xs font-bold text-gray-700 mb-2 mt-2">หลักฐานใบเสร็จ / สลิป</p>
+                <p class="text-xs font-bold text-gray-500 mb-2 mt-2 uppercase tracking-wider">หลักฐานใบเสร็จ / สลิป</p>
                 ${evidenceHTML || '<p class="text-xs text-gray-400">ไม่พบหลักฐาน</p>'}
             </div>
         `;
-        lucide.createIcons();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     } catch (err) {
         content.innerHTML = `<p class="text-red-500 text-center text-xs">ไม่พบข้อมูล: ${err.message}</p>`;
     }
@@ -242,27 +281,39 @@ function formatMoney(amount) {
 }
 
 async function getReportData() {
-    const { data: camp } = await supabaseClient.from('camps').select('*').eq('is_active', true).single();
-    if (!camp) throw new Error("ไม่พบโครงการที่กำลังดำเนินการ");
+    // 🌟 เปลี่ยนไปดึงค่าจากตัวกรอง แทนที่จะดึงจากค่ายปัจจุบันเท่านั้น
+    const selectedCampId = document.getElementById('camp-filter').value;
+    if (!selectedCampId) throw new Error("กรุณาเลือกโครงการที่ต้องการดาวน์โหลดรายงาน");
+    
+    const selectedDept = document.getElementById('dept-filter').value;
 
-    // รายงานสรุปดึงข้อมูลจาก clearances เพื่อสรุปตามฝ่าย (อิงจาก Business Logic ของค่าย)
-    const { data: clearances, error } = await supabaseClient
+    const camp = allCamps.find(c => c.id === selectedCampId);
+    if (!camp) throw new Error("ไม่พบข้อมูลโครงการที่เลือกในระบบ");
+
+    let query = supabaseClient
         .from('clearances')
         .select('purpose, department, request_type, actual_amount, total_amount')
         .eq('camp_id', camp.id)
         .eq('status', 'cleared');
 
+    // ถ้ามีการเลือกฝ่าย ให้กรองเฉพาะฝ่ายนั้น
+    if (selectedDept !== 'all') {
+        query = query.eq('department', selectedDept);
+    }
+
+    const { data: clearances, error } = await query;
     if (error) throw error;
 
     let totalIncome = 0;
     let totalExpense = 0;
     let reportRows = []; 
     
-    // 🌟 เพิ่มชื่อผู้สั่งพิมพ์ลงไปในหัวตาราง Excel
+    let deptText = selectedDept === 'all' ? 'ทุกฝ่ายรวมกัน' : `(เฉพาะฝ่าย: ${selectedDept})`;
+
     let excelData = [
         ['ชุมนุมค่ายอาสาพัฒนาชนบท มหาวิทยาลัยธรรมศาสตร์'],
         ['สรุปรายการการเงิน'],
-        [`โครงการ${camp.name}`],
+        [`โครงการ${camp.name} ${deptText}`],
         [`พิมพ์โดย: ${cachedProfileName} | วันที่พิมพ์: ${new Date().toLocaleDateString('th-TH')}`],
         [''],
         ['รายการ', 'รายรับ', 'รายจ่าย']
@@ -283,6 +334,8 @@ async function getReportData() {
     }
 
     const expenses = safeClearances.filter(c => c.request_type !== 'income' && c.request_type !== 'other_income');
+    
+    // จัดกลุ่มตามฝ่าย
     const departments = [...new Set(expenses.map(e => e.department))];
 
     departments.forEach(dept => {
@@ -310,7 +363,7 @@ async function getReportData() {
     excelData.push(['รายจ่ายรวม', '', totalExpense]);
     excelData.push(['เงินค่ายคงเหลือสุทธิ', net, '']);
 
-    return { reportRows, excelData, campName: camp.name, totalIncome, totalExpense, net };
+    return { reportRows, excelData, campName: camp.name, deptText, totalIncome, totalExpense, net };
 }
 
 window.exportPDF = async function() {
@@ -318,12 +371,12 @@ window.exportPDF = async function() {
     try {
         const data = await getReportData();
         
-        document.getElementById('pdf-camp-name').innerText = `โครงการ${data.campName}`;
+        // แทรกชื่อโครงการและชื่อฝ่ายที่กรอง (รองรับการขึ้นบรรทัดใหม่ด้วย <br>)
+        document.getElementById('pdf-camp-name').innerHTML = `โครงการ${data.campName} <br><span style="font-size: 14px; font-weight: normal; color: #555;">${data.deptText}</span>`;
         document.getElementById('pdf-total-income').innerText = formatMoney(data.totalIncome);
         document.getElementById('pdf-total-expense').innerText = formatMoney(data.totalExpense);
         document.getElementById('pdf-net-balance').innerText = formatMoney(data.net);
         
-        // 🌟 ใส่ชื่อผู้พิมพ์รายงาน
         if(document.getElementById('pdf-printed-by')) document.getElementById('pdf-printed-by').innerText = cachedProfileName;
 
         const printDate = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute:'2-digit' });
