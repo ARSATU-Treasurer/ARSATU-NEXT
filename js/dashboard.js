@@ -107,7 +107,7 @@ async function fetchDashboardDonationStats(campId) {
     try {
         // ดึงรายการที่ได้รับอนุมัติ (cleared) และเป็นยอดบริจาคแท้จริง (income)
         const { data: donations } = await supabaseClient.from('clearances').select('total_amount, purpose').eq('camp_id', campId).eq('request_type', 'income').eq('status', 'cleared');
-        const { data: goalData } = await supabaseClient.from('donation_goals').select('goal_amount').eq('camp_id', campId).single();
+        const { data: goalData } = await supabaseClient.from('donation_goals').select('goal_amount').eq('camp_id', campId).maybesingle();
 
         let cash = 0, transfer = 0;
         if (donations) {

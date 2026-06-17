@@ -41,16 +41,16 @@ window.switchLedgerTab = function(tabType) {
     const exportDiv = document.getElementById('project-export-actions');
     
     if(tabType === 'main') {
-        btnMain.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-emerald-600 shadow-sm transition-all";
-        btnProject.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-700 transition-all";
-        if(exportDiv) exportDiv.classList.add('hidden'); // ซ่อนปุ่ม Export
+        btnMain.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-emerald-600 shadow-sm border border-gray-100 transition-all";
+        btnProject.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all";
+        if(exportDiv) exportDiv.classList.add('hidden');
     } else {
-        btnProject.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-blue-600 shadow-sm transition-all";
-        btnMain.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-700 transition-all";
-        if(exportDiv) exportDiv.classList.remove('hidden'); // โชว์ปุ่ม Export
+        btnProject.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-emerald-600 shadow-sm border border-gray-100 transition-all";
+        btnMain.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all";
+        if(exportDiv) exportDiv.classList.remove('hidden');
     }
     
-    fetchLedgerTransactions(); // รีโหลดตารางใหม่ตามแท็บ
+    fetchLedgerTransactions();
 };
 
 function toggleActionMenu() {
