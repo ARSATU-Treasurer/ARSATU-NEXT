@@ -308,7 +308,7 @@ async function getReportData() {
     let totalExpense = 0;
     let reportRows = []; 
     
-    let deptText = selectedDept === 'all' ? 'ทุกฝ่ายรวมกัน' : `(เฉพาะฝ่าย: ${selectedDept})`;
+    let deptText = selectedDept === 'all' ? 'ทุกฝ่าย' : `(ฝ่าย: ${selectedDept})`;
 
     let excelData = [
         ['ชุมนุมค่ายอาสาพัฒนาชนบท มหาวิทยาลัยธรรมศาสตร์'],
