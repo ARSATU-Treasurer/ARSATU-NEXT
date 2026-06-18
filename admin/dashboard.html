@@ -72,6 +72,26 @@
             <h2 class="font-bold text-gray-800 mb-3 px-1 text-lg">เมนูใช้งาน</h2>
             <div class="grid grid-cols-2 gap-4">
                 
+                <a href="scanner.html" class="bg-white p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between text-left outline-none">
+                    <div>
+                        <div class="w-10 h-10 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <i data-lucide="scan-line" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-800 text-sm">ระบบสแกนเอกสาร</h4>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-2">สแกนบิลเข้าสารบรรณ</p>
+                </a>
+
+                <a href="registry.html" class="bg-white p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between text-left outline-none">
+                    <div>
+                        <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <i data-lucide="folder-open" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-800 text-sm">ทะเบียนเอกสาร</h4>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-2">ดูแฟ้ม Google Sheets</p>
+                </a>
+
                 <a href="donations.html" class="bg-white p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between">
                     <div>
                         <div class="w-10 h-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
@@ -112,7 +132,6 @@
                     <p class="text-[11px] text-gray-400 mt-2">สร้าง/สลับค่ายทำงาน</p>
                 </button>
                 
-                <!-- ปุ่มทำรายการเบิกแทน ควบ 2 คอลัมน์ -->
                 <a href="proxy-request.html" class="col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-2xl shadow-sm border border-blue-100 hover:shadow-md transition-all group flex items-center gap-4">
                     <div class="w-12 h-12 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-md">
                         <i data-lucide="user-plus" class="w-6 h-6"></i>
@@ -123,7 +142,6 @@
                     </div>
                 </a>
             </div>
-        </div>
 
         <!-- Modal รายละเอียดรายการ -->
         <div id="details-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">

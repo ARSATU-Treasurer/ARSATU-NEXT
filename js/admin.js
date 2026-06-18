@@ -480,7 +480,35 @@ async function viewDetails(clearanceId) {
                 </div>
             </div>`;
             
-        footer.innerHTML = `<button onclick="closeModal()" class="w-full bg-white border py-2.5 rounded-xl font-bold">ปิดหน้าต่าง</button>`;
+        // ... (โค้ดเดิมด้านบนที่แสดงรายละเอียด itemsHTML และ evidenceHTML) ...
+        
+        content.innerHTML = `
+            <div class="space-y-2">
+                <p><b>ชื่อผู้เบิก:</b> ${applicantName}</p>
+                <p><b>โครงการ:</b> ${clearance.camps?.name || 'ไม่ระบุ'}</p>
+                <p><b>หัวข้อ:</b> ${clearance.purpose}</p>
+                ${receiveBankHTML}
+                <div class="bg-gray-50 p-3 rounded-xl mt-3">
+                    <p class="font-bold border-b pb-1 mb-2">รายการที่ขอเบิก</p>
+                    ${itemsHTML || '<p class="text-gray-400">ไม่มีรายการ</p>'}
+                </div>
+                <div class="pt-2 mt-4 border-t border-gray-100">
+                    <p class="text-xs font-bold text-gray-700 mb-2 mt-2">หลักฐานใบเสร็จ / สลิป</p>
+                    ${evidenceHTML || '<p class="text-xs text-gray-400">ไม่พบหลักฐาน</p>'}
+                </div>
+            </div>`;
+            
+        // 🌟 อัปเดตส่วนปุ่ม Footer 🌟
+        let registerBtnHTML = '';
+        // แสดงปุ่มเฉพาะรายการที่มีรูปหลักฐานแนบมาแล้วเท่านั้น
+        if ((clearance.status === 'cleared' || clearance.status === 'approved' || clearance.status === 'advance_transferred') && receiptFiles.length > 0) {
+            registerBtnHTML = `<button onclick="registerDocument('${clearance.id}')" class="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl shadow-sm hover:bg-emerald-700 transition flex items-center justify-center gap-2"><i data-lucide="archive" class="w-4 h-4"></i> นำเข้าทะเบียนเอกสาร</button>`;
+        }
+
+        footer.innerHTML = `
+            ${registerBtnHTML}
+            <button onclick="closeModal()" class="w-full bg-white border border-gray-200 text-gray-600 py-2.5 rounded-xl font-bold hover:bg-gray-50 transition flex items-center justify-center">ปิดหน้าต่าง</button>
+        `;
         lucide.createIcons();
     } catch(e) { 
         content.innerHTML = `<p class="text-red-500">${e.message}</p>`; 
@@ -866,3 +894,91 @@ window.logout = async function() {
         }
     });
 };
+
+
+// ================= ระบบนำเข้าทะเบียนเอกสาร (Sarabun Auto-Registry) ================= //
+
+// 👇 🌟 เอา URL ของ Google Apps Script (Auto-Registry) มาวางตรงนี้ครับ 👇
+const SARABUN_API_URL = 'https://script.google.com/macros/s/AKfycbyoXeyrhWpF2W7PMq3R7P_-XzOVCgvFmt3HaQ9qhdiqRYJ72z6HLKhk8wCnuLefC906/exec';
+
+window.registerDocument = async function(clearanceId) {
+    const { data: clearance } = await supabaseClient.from('clearances').select('*').eq('id', clearanceId).single();
+    if(!clearance) return;
+    
+    let receiptFiles = [];
+    if (clearance.receipt_image_url) {
+        try {
+            const parsed = JSON.parse(clearance.receipt_image_url);
+            if (Array.isArray(parsed)) receiptFiles = parsed;
+            else receiptFiles = [clearance.receipt_image_url];
+        } catch (e) { receiptFiles = [clearance.receipt_image_url]; }
+    }
+    
+    if(receiptFiles.length === 0) return Swal.fire('ไม่พบเอกสาร', 'ไม่มีไฟล์รูปภาพให้ลงทะเบียน', 'error');
+
+    // ดึงไฟล์แรกมาทำเป็นตัวแทนทะเบียนเอกสาร
+    const fileUrl = receiptFiles[0]; 
+
+    const { value: formValues } = await Swal.fire({
+        title: 'นำเข้าทะเบียนเอกสาร',
+        html: `
+            <div class="text-left text-sm mt-2">
+                <img src="${fileUrl}" class="w-full h-32 object-cover rounded-lg mb-3 border border-gray-200">
+                <label class="block font-bold text-gray-700 mb-1">ชื่อเอกสาร</label>
+                <input id="swal-doc-title" class="swal2-input !m-0 !w-full !text-sm mb-3 border-gray-200" value="${clearance.purpose}">
+                
+                <label class="block font-bold text-gray-700 mb-1">สถานที่จัดเก็บตัวจริง <span class="text-red-500">*</span></label>
+                <select id="swal-doc-location" class="swal2-select !m-0 !w-full !text-sm border-gray-200 font-medium">
+                    <option value="ห้องค่าย_ตู้ชั้นหนึ่ง">ห้องค่าย_ตู้ชั้นหนึ่ง</option>
+                    <option value="ห้องค่าย_ตู้ชั้นสอง">ห้องค่าย_ตู้ชั้นสอง</option>
+                    <option value="อยู่ที่อุ้มรัก">อยู่ที่อุ้มรัก</option>
+                    <option value="อยู่ที่วิน">อยู่ที่วิน</option>
+                    <option value="อยู่ที่เลขาฯ" selected>อยู่ที่เลขาฯ</option>
+                    <option value="อยู่ที่ฝ่ายอื่น">อยู่ที่ฝ่ายอื่น</option>
+                    <option value="หาย">หาย</option>
+                    <option value="ส่งแล้ว">ส่งแล้ว</option>
+                </select>
+            </div>
+        `,
+        focusConfirm: false, showCancelButton: true, confirmButtonColor: '#059669', cancelButtonColor: '#9ca3af', confirmButtonText: 'บันทึกเข้าระบบ', cancelButtonText: 'ยกเลิก',
+        preConfirm: () => {
+            const title = document.getElementById('swal-doc-title').value.trim();
+            const location = document.getElementById('swal-doc-location').value.trim();
+            if(!location) Swal.showValidationMessage('กรุณาระบุสถานที่จัดเก็บตัวจริง');
+            return { title, location };
+        }
+    });
+
+    if (formValues) {
+        Swal.fire({title: 'กำลังลงทะเบียนสารบรรณ...', html: 'ระบบกำลังดึงรูปและจัดเก็บลง Google Drive...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        
+        try {
+            if (!SARABUN_API_URL || SARABUN_API_URL.includes('ใส่_URL_')) throw new Error("ยังไม่ได้ใส่ URL ของ API สารบรรณ");
+
+            // ส่งข้อมูลไปให้ Google Apps Script ทำงาน
+            const response = await fetch(SARABUN_API_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    imageUrl: fileUrl,
+                    department: clearance.department,
+                    docName: formValues.title,
+                    location: formValues.location
+                }),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            });
+
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error);
+
+            Swal.fire({
+                icon: 'success',
+                title: 'ลงทะเบียนสำเร็จ!',
+                html: `รหัสเอกสาร: <b class="text-emerald-600">${result.runningNumber}</b><br>ข้อมูลถูกส่งเข้า Google Sheets เรียบร้อยแล้ว`
+            });
+            
+            closeModal();
+        } catch(e) {
+            Swal.fire('ข้อผิดพลาด', e.message, 'error');
+        }
+    }
+}

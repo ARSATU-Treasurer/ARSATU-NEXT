@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ARSATU NEXT - ทะเบียนเอกสาร (Sarabun)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-gray-50 text-gray-800 pb-20 min-h-screen flex flex-col">
+
+    <header class="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm shrink-0">
+        <div class="flex items-center gap-3">
+            <a href="dashboard.html" class="p-2 text-gray-500 hover:text-amber-600 bg-gray-50 rounded-full transition-colors"><i data-lucide="arrow-left" class="w-5 h-5"></i></a>
+            <h1 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="folder-open" class="text-amber-500 w-5 h-5"></i> ทะเบียนเอกสาร</h1>
+        </div>
+        <a href="https://docs.google.com/spreadsheets/d/11akBU9vdESgBjDmFHXFHg-o7Ca8QdaQwycT9rgEWO1E/edit?usp=sharing" target="_blank" class="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold">
+            เปิดเต็มจอ <i data-lucide="external-link" class="w-4 h-4"></i>
+        </a>
+    </header>
+
+    <main class="flex-grow p-4 w-full h-full max-w-6xl mx-auto">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden w-full h-[80vh] relative">
+            <iframe 
+                src="https://docs.google.com/spreadsheets/d/11akBU9vdESgBjDmFHXFHg-o7Ca8QdaQwycT9rgEWO1E/edit?usp=sharing&widget=true&headers=false" 
+                class="w-full h-full border-0"
+                allowfullscreen>
+            </iframe>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
