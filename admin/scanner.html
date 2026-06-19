@@ -24,7 +24,7 @@
             <h2 class="font-bold text-xl mb-2">ถ่ายภาพเอกสาร</h2>
             <p class="text-xs text-gray-500 mb-6">ระบบจะปรับภาพให้เป็นสแกนเนอร์อัตโนมัติ</p>
             
-            <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden">
+            <input type="file" id="camera-input" accept="image/*,application/pdf" class="hidden">
             <button onclick="document.getElementById('camera-input').click()" class="w-full bg-gray-900 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-gray-800 transition">
                 <i data-lucide="scan-line" class="w-5 h-5"></i> เปิดกล้องสแกนเลย
             </button>
@@ -100,6 +100,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <script src="../js/supabase.js"></script>
     <script src="../js/scanner.js"></script>

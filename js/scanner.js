@@ -26,27 +26,41 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ============ ระบบ Crop และสแกนภาพ ============ //
 
+let originalFileType = '';
+
 function handleFileSelect(event) {
     const file = event.target.files[0];
     if (!file) return;
+    
+    originalFileType = file.type;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const imageToCrop = document.getElementById('image-to-crop');
-        imageToCrop.src = e.target.result;
-        imageToCrop.classList.remove('hidden');
+    if (originalFileType === 'application/pdf') {
+        // 🌟 ถ้าเป็น PDF ให้ข้ามการครอปไปเลย
+        finalScannedBlob = file;
+        const preview = document.getElementById('scanned-preview');
+        // แสดงไอคอนจำลอง เนื่องจากเบราว์เซอร์โชว์พรีวิว PDF ในแท็ก img ไม่ได้
+        preview.src = 'https://upload.wikimedia.org/wikipedia/commons/8/87/PDF_file_icon.svg'; 
+        preview.classList.add('p-8', 'bg-gray-100', 'object-contain');
 
         document.getElementById('step-1-upload').classList.add('hidden');
-        document.getElementById('step-2-crop').classList.remove('hidden');
+        document.getElementById('step-2-crop').classList.add('hidden');
+        document.getElementById('step-3-form').classList.remove('hidden');
+    } else {
+        // 🌟 ถ้าเป็นรูปภาพ เข้าสู่โหมดสแกนเนอร์ปกติ
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const imageToCrop = document.getElementById('image-to-crop');
+            imageToCrop.src = e.target.result;
+            imageToCrop.classList.remove('hidden');
 
-        if (cropper) cropper.destroy();
-        cropper = new Cropper(imageToCrop, {
-            viewMode: 1,
-            autoCropArea: 0.9,
-            background: false,
-        });
-    };
-    reader.readAsDataURL(file);
+            document.getElementById('step-1-upload').classList.add('hidden');
+            document.getElementById('step-2-crop').classList.remove('hidden');
+
+            if (cropper) cropper.destroy();
+            cropper = new Cropper(imageToCrop, { viewMode: 1, autoCropArea: 0.9, background: false });
+        };
+        reader.readAsDataURL(file);
+    }
 }
 
 function cancelCrop() {
@@ -59,25 +73,29 @@ function cancelCrop() {
 function applyCrop() {
     if (!cropper) return;
 
-    // 1. ดึงภาพที่ครอปแล้วมา
     const croppedCanvas = cropper.getCroppedCanvas({ maxWidth: 1200, maxHeight: 1200 });
-    
-    // 2. สร้าง Canvas จำลองขึ้นมาใหม่เพื่อฝังฟิลเตอร์
     const filterCanvas = document.createElement('canvas');
     const ctx = filterCanvas.getContext('2d');
     filterCanvas.width = croppedCanvas.width;
     filterCanvas.height = croppedCanvas.height;
 
-    // 3. 🌟 สั่งฝังฟิลเตอร์สแกนเนอร์ (ขาวดำ 100% + เร่งคอนทราสต์ 140%) ลงในรูปจริง 🌟
+    // 🌟 ใส่ฟิลเตอร์สแกนเนอร์ ขาวดำ+คอนทราสต์
     ctx.filter = 'grayscale(100%) contrast(1.4)';
     ctx.drawImage(croppedCanvas, 0, 0);
 
-    // 4. เอาภาพที่ฝังฟิลเตอร์แล้วไปแสดงที่ Preview
+    // แสดงตัวอย่างบนหน้าเว็บ
     const preview = document.getElementById('scanned-preview');
     preview.src = filterCanvas.toDataURL('image/jpeg', 0.8);
+    preview.classList.remove('p-8', 'bg-gray-100', 'object-contain');
 
-    // 5. แปลงภาพที่ฝังฟิลเตอร์แล้วเป็นไฟล์ Blob เพื่อเตรียมอัปโหลด
-    filterCanvas.toBlob((blob) => { finalScannedBlob = blob; }, 'image/jpeg', 0.8);
+    // 🌟 แปลง Canvas เป็นไฟล์ PDF ด้วย jsPDF
+    const { jsPDF } = window.jspdf;
+    const orientation = filterCanvas.width > filterCanvas.height ? 'l' : 'p';
+    const pdf = new jsPDF(orientation, 'px', [filterCanvas.width, filterCanvas.height]);
+    pdf.addImage(filterCanvas.toDataURL('image/jpeg', 1.0), 'JPEG', 0, 0, filterCanvas.width, filterCanvas.height);
+    
+    // บันทึกไฟล์ที่เตรียมอัปโหลดในรูปแบบ PDF
+    finalScannedBlob = pdf.output('blob'); 
 
     document.getElementById('step-2-crop').classList.add('hidden');
     document.getElementById('step-3-form').classList.remove('hidden');
@@ -102,8 +120,9 @@ async function handleSaveDocument(e) {
         if (!SARABUN_API_URL || SARABUN_API_URL.includes('ใส่_URL_')) throw new Error("ยังไม่ได้ใส่ URL ของ API สารบรรณ");
 
         // 1. อัปโหลดรูปลง Supabase Storage ก่อน เพื่อให้ได้ URL (เอาไปให้ Google ดูดต่อ)
-        const tempFileName = `scans/temp_${Date.now()}.jpg`;
-        const { error: uploadErr } = await supabaseClient.storage.from('receipts').upload(tempFileName, finalScannedBlob, { contentType: 'image/jpeg' });
+        // อัปโหลดไฟล์ชั่วคราว (เป็น PDF)
+        const tempFileName = `scans/temp_${Date.now()}.pdf`;
+        const { error: uploadErr } = await supabaseClient.storage.from('receipts').upload(tempFileName, finalScannedBlob, { contentType: 'application/pdf' });
         if (uploadErr) throw uploadErr;
 
         const { data: urlData } = supabaseClient.storage.from('receipts').getPublicUrl(tempFileName);
