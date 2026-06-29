@@ -50,13 +50,14 @@
                     <thead>
                         <tr class="text-[10px] text-gray-400 bg-gray-50 font-bold uppercase border-b border-gray-100">
                             <th class="p-4">วันที่</th>
-                            <th class="p-4">รายการ / ผู้บริจาค</th>
+                            <th class="p-4">รายการ</th>
                             <th class="p-4">ช่องทาง</th>
-                            <th class="p-4 text-right">จำนวนเงิน</th>
+                            <th class="p-4 text-right">ยอดเงิน</th>
+                            <th class="p-4 text-center">จัดการ</th> <!-- 🌟 เพิ่มคอลัมน์นี้ -->
                         </tr>
                     </thead>
                     <tbody id="transaction-history-body" class="divide-y divide-gray-50">
-                        <tr><td colspan="4" class="p-8 text-center text-gray-400 text-xs">กำลังประมวลผลประวัติ...</td></tr>
+                        <tr><td colspan="5" class="p-8 text-center text-gray-400 text-xs"><i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2"></i>กำลังโหลด...</td></tr> <!-- 🌟 แก้ colspan เป็น 5 -->
                     </tbody>
                 </table>
             </div>

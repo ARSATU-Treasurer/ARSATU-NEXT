@@ -54,15 +54,19 @@
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-left">
-                    <thead class="bg-white text-gray-400 font-bold uppercase text-[10px] border-b border-gray-100">
-                        <tr>
-                            <th class="p-4">วันที่ / เวลา</th>
-                            <th class="p-4">รายการ</th>
-                            <th class="p-4">บัญชี</th>
-                            <th class="p-4 text-right">จำนวนเงิน (฿)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="transactions-body" class="divide-y divide-gray-50"></tbody>
+                    <!-- ค้นหาจุดนี้แล้วแก้ไขให้มี 5 คอลัมน์ -->
+<thead class="bg-white text-gray-400 font-bold uppercase text-[10px] border-b border-gray-100">
+    <tr>
+        <th class="p-4">วันที่</th>
+        <th class="p-4">รายการ</th>
+        <th class="p-4">บัญชี/กองทุน</th>
+        <th class="p-4 text-right">ยอดเงิน (บาท)</th>
+        <th class="p-4 text-center">จัดการ</th> <!-- 🌟 เพิ่มบรรทัดนี้ -->
+    </tr>
+</thead>
+<tbody id="transactions-body" class="divide-y divide-gray-50">
+    <tr><td colspan="5" class="p-8 text-center text-gray-400">กำลังโหลด...</td></tr> <!-- 🌟 แก้ colspan เป็น 5 -->
+</tbody>
                 </table>
             </div>
         </div>

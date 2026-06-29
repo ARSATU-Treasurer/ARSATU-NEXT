@@ -76,6 +76,9 @@ function renderHistory(clearances) {
         if (item.status === 'draft') {
             actionButton = `<a href="clearances.html?id=${item.id}" onclick="event.stopPropagation()" class="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200 relative z-10">✏️ แก้ไขร่าง</a>`;
         } 
+        else if (item.status === 'pending') {
+            actionButton = `<button onclick="recallRequest('${item.id}', event)" class="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 border border-gray-200 rounded-lg font-bold hover:bg-gray-200 relative z-10 flex items-center gap-1 shadow-sm"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> ดึงกลับมาแก้ไข</button>`;
+        }
         // 🌟 เพิ่มปุ่ม: แก้ไขคำขอเบิกตั้งต้น (ที่โดนตีกลับ)
         else if (item.status === 'rejected') {
             actionButton = `<a href="clearances.html?id=${item.id}" onclick="event.stopPropagation()" class="text-xs bg-red-500 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm hover:bg-red-600 relative z-10">✏️ แก้ไขคำขอ</a>`;
@@ -247,3 +250,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
+
+// ================= ฟังก์ชันสำหรับแก้ปัญหา Human Error ================= //
+window.recallRequest = async function(clearanceId, event) {
+    // ป้องกันไม่ให้คลิกแล้วเด้งเปิดหน้าต่างรายละเอียด
+    if (event) event.stopPropagation();
+    
+    // ถามเพื่อความแน่ใจก่อนดึงกลับ
+    const confirmResult = await Swal.fire({
+        title: 'ดึงคำขอกลับ?',
+        text: "คำขอนี้จะถูกดึงกลับมาเป็น 'ฉบับร่าง' เพื่อให้คุณแก้ไขข้อมูลและกดส่งใหม่ได้",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3b82f6',
+        cancelButtonColor: '#9ca3af',
+        confirmButtonText: 'ดึงกลับมาแก้ไข',
+        cancelButtonText: 'ยกเลิก',
+        reverseButtons: true
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
+    Swal.fire({ title: 'กำลังดึงข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    try {
+        // อัปเดตสถานะใน Supabase กลับเป็น draft
+        const { error } = await supabaseClient
+            .from('clearances')
+            .update({ status: 'draft' })
+            .eq('id', clearanceId);
+
+        if (error) throw error;
+        
+        await Swal.fire('สำเร็จ!', 'ดึงคำขอกลับมาเป็นฉบับร่างแล้ว คุณสามารถกดแก้ไขได้เลย', 'success');
+        window.location.reload(); // โหลดหน้าเว็บใหม่เพื่ออัปเดตปุ่ม
+    } catch (err) {
+        Swal.fire('ข้อผิดพลาด', err.message, 'error');
+    }
+}

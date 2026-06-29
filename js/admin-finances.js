@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { data: profile } = await supabaseClient.from('profiles').select('role').eq('id', session.user.id).single();
     if (!profile || profile.role !== 'admin') return window.location.href = '../member/dashboard.html';
 
-    // 🌟 โหลดข้อมูลทั้งหมดเมื่อเปิดหน้า
+    // โหลดข้อมูลทั้งหมดเมื่อเปิดหน้า
     fetchBanks();
     fetchTransactions();
     fetchFunds();
@@ -105,7 +105,7 @@ function editBank(id) {
 async function handleSaveBank(e) {
     e.preventDefault();
     const idInput = document.getElementById('bank-id');
-    const id = idInput ? idInput.value.trim() : ''; // ดึงค่าและตัดช่องว่าง
+    const id = idInput ? idInput.value.trim() : '';
     const name = document.getElementById('bank-name').value.trim();
     const accNum = document.getElementById('bank-acc-num').value.trim();
     const color = document.getElementById('bank-color').value;
@@ -116,14 +116,11 @@ async function handleSaveBank(e) {
 
     try {
         if(id) {
-            // ถ้ามี ID ค้างอยู่แปลว่าเป็นการ แก้ไข (Update)
             await supabaseClient.from('bank_accounts').update({ name, account_number: accNum, color, balance }).eq('id', id);
         } else {
-            // ถ้าไม่มี ID แปลว่าเป็นการ เพิ่มใหม่ (Insert)
             await supabaseClient.from('bank_accounts').insert([{ name, account_number: accNum, color, balance }]);
         }
         
-        // 🌟 FIX: สั่งล้างฟอร์มและ "ล้าง ID" ทิ้งทันที ป้องกันบั๊กเขียนทับบัญชีเดิมในการเพิ่มรอบหน้า
         if(idInput) idInput.value = '';
         document.getElementById('bank-form').reset();
         
@@ -153,36 +150,33 @@ let isProcessingTransfer = false;
 async function handleTransferMoney(e) {
     e.preventDefault();
     
-    // ป้องกันคนกดย้ำๆ (คลิกเบิ้ล)
+    // 🌟 FIX: ย้ายการล็อกปุ่มมาไว้บนสุด ป้องกัน Race Condition
     if (isProcessingTransfer) return;
     isProcessingTransfer = true;
 
-    const fromId = document.getElementById('transfer-from').value;
-    const toId = document.getElementById('transfer-to').value;
-    const amount = parseFloat(document.getElementById('transfer-amount').value);
-    const slipFile = document.getElementById('transfer-slip')?.files[0];
-
-    if(fromId === toId) {
-        isProcessingTransfer = false;
-        return Swal.fire('ไม่สามารถโอนเข้าบัญชีเดียวกันได้','','warning');
-    }
-    
     const btn = document.getElementById('btn-save-transfer');
     btn.disabled = true; 
     btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 inline animate-spin"></i> กำลังประมวลผล...';
-    lucide.createIcons();
 
     try {
-        // เช็คแค่ว่าเงินต้นทางพอโอนไหม
+        const fromId = document.getElementById('transfer-from').value;
+        const toId = document.getElementById('transfer-to').value;
+        const amount = parseFloat(document.getElementById('transfer-amount').value);
+        const slipFile = document.getElementById('transfer-slip')?.files[0];
+
+        if(fromId === toId) {
+            Swal.fire('ไม่สามารถโอนเข้าบัญชีเดียวกันได้','','warning');
+            return;
+        }
+
         const { data: currentBankFrom, error: errFrom } = await supabaseClient.from('bank_accounts').select('name, balance').eq('id', fromId).single();
         const { data: currentBankTo, error: errTo } = await supabaseClient.from('bank_accounts').select('name').eq('id', toId).single();
         
         if (errFrom || errTo) throw new Error("ไม่สามารถดึงข้อมูลบัญชีได้");
 
         if(parseFloat(currentBankFrom.balance) < amount) {
-            isProcessingTransfer = false;
-            btn.disabled = false; btn.innerText = 'ยืนยันการโอนเงิน';
-            return Swal.fire(`บัญชี ${currentBankFrom.name} มีเงินไม่พอโอน`, `(คงเหลือ ${parseFloat(currentBankFrom.balance).toLocaleString()} ฿)`, 'warning');
+            Swal.fire(`บัญชี ${currentBankFrom.name} มีเงินไม่พอโอน`, `(คงเหลือ ${parseFloat(currentBankFrom.balance).toLocaleString()} ฿)`, 'warning');
+            return;
         }
 
         let slipUrl = null;
@@ -196,8 +190,6 @@ async function handleTransferMoney(e) {
         const { data: { session } } = await supabaseClient.auth.getSession();
         const descSuffix = slipUrl ? ` | <a href="${slipUrl}" target="_blank" class="text-blue-500 underline font-bold">ดูสลิป</a>` : '';
 
-        // 🌟 แก้ไขจุดสำคัญ: ลบคำสั่ง update bank_accounts ออกไป
-        // บันทึกแค่ประวัติลงตาราง transactions อย่างเดียว แล้วปล่อยให้ Database Trigger ทำหน้าที่บวกลบเงินอัตโนมัติ
         await supabaseClient.from('transactions').insert([
             {
                 bank_account_id: fromId,
@@ -223,9 +215,11 @@ async function handleTransferMoney(e) {
     } catch(err) { 
         Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); 
     } finally { 
+        // 🌟 FIX: ปลดล็อกปุ่มและสถานะใน finally เสมอ
         isProcessingTransfer = false;
         btn.disabled = false; 
         btn.innerText = 'ยืนยันการโอนเงิน'; 
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 }
 
@@ -234,41 +228,99 @@ async function handleTransferMoney(e) {
 async function fetchTransactions() {
     const bankId = document.getElementById('filter-bank').value;
     const tbody = document.getElementById('transactions-body');
-    tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-gray-400">กำลังโหลด...</td></tr>';
-
+    tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-gray-400"><i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2"></i>กำลังโหลด...</td></tr>';
+    
     try {
         let query = supabaseClient.from('transactions').select('*, bank_accounts(name, color)').order('created_at', { ascending: false });
         if(bankId !== 'all') query = query.eq('bank_account_id', bankId);
-
+        
         const { data: trans, error } = await query;
         if(error) throw error;
-
+        
         if(trans.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-gray-400">ยังไม่มีประวัติการทำรายการ</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-gray-400">ไม่มีประวัติการทำรายการ</td></tr>';
             return;
         }
-
+        
         tbody.innerHTML = trans.map(t => {
             const isIncome = t.transaction_type === 'income';
             const date = new Date(t.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' });
             const bankColor = t.bank_accounts?.color || '#9ca3af';
             
+            // ลบ Tag HTML ออก (ตัดลิงก์ดูสลิปทิ้งสำหรับข้อความแจ้งเตือน) และป้องกันเครื่องหมายคำพูดทำโค้ดพัง
+const plainDesc = (t.description || '').replace(/<[^>]*>?/gm, '').trim();
+const safeDesc = plainDesc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const actionBtn = !t.clearance_id 
+                ? `<button onclick="voidTransaction('${t.id}', '${safeDesc}', ${t.amount})" class="text-gray-400 hover:text-red-600 p-1.5 rounded-lg transition-colors bg-gray-50 hover:bg-red-50" title="ยกเลิกรายการนี้"><i data-lucide="trash-2" class="w-4 h-4"></i></button>`
+                : `<span class="text-[10px] text-gray-300 font-bold bg-gray-50 px-2 py-1 rounded">ผูกกับบิล</span>`;
+
             return `
             <tr class="hover:bg-gray-50 border-b border-gray-50">
                 <td class="p-4 text-xs text-gray-500">${date}</td>
                 <td class="p-4 text-xs font-medium text-gray-800">${t.description}</td>
                 <td class="p-4 text-xs">
                     <span class="px-2 py-1 rounded border shadow-sm font-bold bg-white" style="color: ${bankColor}; border-color: ${bankColor}40">
-                        ${t.bank_accounts?.name || 'ไม่ทราบ'}
+                        ${t.bank_accounts?.name || '-'}
                     </span>
                 </td>
                 <td class="p-4 text-right font-bold ${isIncome ? 'text-green-600' : 'text-red-600'} text-sm">
                     ${isIncome ? '+' : '-'}${parseFloat(t.amount).toLocaleString('th-TH', {minimumFractionDigits: 2})}
                 </td>
+                <td class="p-4 text-center">
+                    <div class="flex justify-center items-center h-full">
+                        ${actionBtn}
+                    </div>
+                </td>
             </tr>`;
         }).join('');
+        
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        
+    } catch(err) { 
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-500">${err.message}</td></tr>`; 
+    }
+}
 
-    } catch(err) { tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-red-500">${err.message}</td></tr>`; }
+window.voidTransaction = async function(txId, desc, amount) {
+    const confirmResult = await Swal.fire({
+        title: 'ยกเลิกรายการ (Void)?',
+        text: `ระบบจะลบรายการ "${desc}" และบันทึกประวัติลง Audit Log ยืนยันหรือไม่?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#9ca3af',
+        confirmButtonText: 'ยืนยันการยกเลิก',
+        cancelButtonText: 'ปิด',
+        reverseButtons: true
+    });
+
+    if (confirmResult.isConfirmed) {
+        Swal.fire({ title: 'กำลังดำเนินการ...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            
+            const auditPayload = {
+                user_id: session.user.id,
+                action: 'VOID_FINANCE_TRANSACTION',
+                details: `ลบรายการบัญชี: ${desc} | ยอดเงิน: ${amount.toLocaleString()}`,
+                created_at: new Date().toISOString()
+            };
+            const { error: auditErr } = await supabaseClient.from('audit_logs').insert([auditPayload]);
+            if (auditErr) throw new Error('บันทึก Audit Log ล้มเหลว: ' + auditErr.message);
+
+            const { error: deleteErr } = await supabaseClient.from('transactions').delete().eq('id', txId);
+            if (deleteErr) throw deleteErr;
+
+            await Swal.fire('สำเร็จ!', 'ทำรายการ Void และบันทึกประวัติเรียบร้อยแล้ว', 'success');
+            
+            fetchTransactions();
+            if (typeof fetchBanks === 'function') fetchBanks();
+            if (typeof fetchFunds === 'function') fetchFunds();
+
+        } catch (err) {
+            Swal.fire('ข้อผิดพลาด', err.message, 'error');
+        }
+    }
 }
 
 // ================= ระบบจัดการกองทุน (Funds) ส่วนกลาง ================= //
@@ -281,7 +333,6 @@ async function fetchFunds() {
     lucide.createIcons();
 
     try {
-        // 🌟 ดึงกองทุนทั้งหมดโดยไม่สนใจ camp_id
         const { data: funds, error } = await supabaseClient.from('funds').select('*').order('created_at', { ascending: true });
         if (error) throw error;
 
@@ -348,7 +399,6 @@ async function handleSaveFund(e) {
         if(id) {
             await supabaseClient.from('funds').update({ name, balance }).eq('id', id);
         } else {
-            // 🌟 ไม่ต้องส่ง camp_id ไปแล้ว
             await supabaseClient.from('funds').insert([{ name, balance }]);
         }
         
@@ -357,7 +407,7 @@ async function handleSaveFund(e) {
         
         Swal.fire('บันทึกข้อมูลสำเร็จ', '', 'success');
         closeFundModal();
-        fetchFunds(); // 👈 ดึงข้อมูลใหม่
+        fetchFunds(); 
     } catch(err) { 
         Swal.fire('เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาด: ' + err.message, 'error'); 
     } finally { 
@@ -368,11 +418,8 @@ async function handleSaveFund(e) {
 async function deleteFund(id) {
     if(!confirm("⚠️ คุณต้องการลบกองทุนนี้ใช่หรือไม่?")) return;
     await supabaseClient.from('funds').delete().eq('id', id);
-    fetchFunds(); // 👈 ดึงข้อมูลใหม่
+    fetchFunds(); 
 }
-
-
-
 
 // ฟังก์ชัน เปิด-ปิด ตัวเลือกเมนูแอดมิน
 function toggleAdminActionMenu() {
@@ -383,11 +430,9 @@ function toggleAdminActionMenu() {
 // ฟังก์ชัน ลอจิกการกดปุ่มจัดการโครงการ (Camps)
 function handleManageCampsClick() {
     toggleAdminActionMenu();
-    // ถ้าอยู่ที่หน้า Dashboard หลัก (ซึ่งมีฟังก์ชันเปิดกล่องจัดการค่ายอยู่แล้ว) ให้เรียกเปิดได้เลย
     if (typeof openManageCampsModal === 'function') {
         openManageCampsModal();
     } else {
-        // ถ้าอยู่หน้าอื่น (เช่น หน้าเงินบริจาค/การเงิน) ให้ลิงก์กลับไปหน้าหลักพร้อมติดพารามิเตอร์เปิดกล่อง
         window.location.href = 'dashboard.html?manage=camps';
     }
 }
