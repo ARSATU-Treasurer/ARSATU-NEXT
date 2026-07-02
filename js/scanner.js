@@ -1,6 +1,6 @@
 // js/scanner.js
 
-// 👇 🌟 เอา URL ของ Google Apps Script (Auto-Registry ตัวเดียวกับเฟส 3) มาวางตรงนี้ครับ 👇
+// 👇 🌟 เอา URL ของ Google Apps Script (Auto-Registry ตัวเดียวกับเฟส 3) มาวางตรงนี้ 👇
 const SARABUN_API_URL = 'https://script.google.com/macros/s/AKfycbyoXeyrhWpF2W7PMq3R7P_-XzOVCgvFmt3HaQ9qhdiqRYJ72z6HLKhk8wCnuLefC906/exec';
 
 let cropper = null;

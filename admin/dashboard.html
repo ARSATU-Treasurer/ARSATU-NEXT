@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ARSATU NEXT - Admin</title>
+    <title>ARSATU NEXT - Admin Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>body { font-family: 'Prompt', sans-serif; }</style>
@@ -121,6 +121,16 @@
                     </div>
                     <p class="text-[11px] text-gray-400 mt-2">กำหนดเพดานเบิกจ่าย</p>
                 </a>
+
+                <a href="budget-plan.html" class="bg-white p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between text-left outline-none">
+    <div>
+        <div class="w-10 h-10 rounded-full bg-fuchsia-100 text-fuchsia-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <i data-lucide="folder-search" class="w-5 h-5"></i>
+        </div>
+        <h4 class="font-bold text-gray-800 text-sm">พิจารณาแฟ้มงบฯ</h4>
+    </div>
+    <p class="text-[11px] text-gray-400 mt-2">ตรวจและปรับลดงบประมาณ</p>
+</a>
                 
                 <button onclick="openManageCampsModal()" class="bg-white p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between text-left outline-none">
                     <div>
@@ -280,6 +290,16 @@
                     <span class="text-[11px] text-purple-700/70 block">สร้างโครงการค่าย สลับค่ายทำงานปัจจุบัน หรือลบโครงการ</span>
                 </div>
             </button>
+
+            <a href="budget-plan.html" class="flex items-center gap-4 p-3 bg-fuchsia-50 rounded-2xl hover:bg-fuchsia-100 transition-colors">
+    <div class="w-10 h-10 rounded-full bg-fuchsia-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+        <i data-lucide="folder-search" class="w-5 h-5"></i>
+    </div>
+    <div>
+        <span class="font-bold text-fuchsia-900 block text-sm">พิจารณาแฟ้มงบฯ</span>
+        <span class="text-[11px] text-fuchsia-700/70 block">ตรวจและปรับลดรายการในแฟ้ม</span>
+    </div>
+</a>
 
             <!-- เพิ่มเมนู: ทำรายการเบิกแทนใน Bottom Sheet -->
             <a href="proxy-request.html" class="flex items-center gap-4 p-3 bg-blue-50 rounded-2xl hover:bg-blue-100 transition-colors">

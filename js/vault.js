@@ -1,6 +1,6 @@
 // js/vault.js
 
-// 👇 🌟 เอา URL ของเว็บแอป (Google Apps Script) ที่เพิ่งได้มา วางตรงนี้ครับ 👇
+// 👇 🌟 เอา URL ของเว็บแอป (Google Apps Script) ที่เพิ่งได้มา วางตรงนี้ 👇
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwnhiTo8wharGgHOgyZ5rPjsQ-72gpZQJh92d0pNfNTMSMxxe1nk6W4kBbSgwNK6nMN/exec';
 
 let cropper = null;

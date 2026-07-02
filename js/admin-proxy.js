@@ -133,7 +133,7 @@ async function handleProxySubmit(e) {
 
     const files = document.getElementById('receipt-file').files;
     if (requestType === 'reimburse' && files.length === 0) {
-        return Swal.fire('แจ้งเตือน', 'เบิกเงินคืน ต้องแนบสลิป/ใบเสร็จด้วยครับ', 'warning');
+        return Swal.fire('แจ้งเตือน', 'เบิกเงินคืน ต้องแนบสลิป/ใบเสร็จ', 'warning');
     }
 
     const items = [];

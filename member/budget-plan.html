@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARSATU NEXT - วางแผนรายการใช้งบประมาณ (แฟ้มงบประมาณ)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Anuphan', sans-serif; background-color: #f8fafc; }
+    </style>
+</head>
+<body class="text-gray-800 pb-24 lg:pb-10">
+
+    <div class="lg:hidden bg-white border-b border-gray-200 sticky top-0 z-40 px-5 py-4 flex justify-between items-center shadow-sm">
+        <h1 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="folder-open" class="w-5 h-5 text-purple-600"></i> แฟ้มงบประมาณ</h1>
+        <button onclick="window.location.href='dashboard.html'" class="p-2 bg-gray-50 text-gray-600 rounded-xl"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+
+    <div class="max-w-4xl mx-auto lg:mt-10 px-4 lg:px-0">
+        <div class="hidden lg:flex justify-between items-end mb-6">
+            <div>
+                <button onclick="window.location.href='dashboard.html'" class="text-gray-500 hover:text-gray-800 flex items-center gap-1 mb-2 text-sm font-bold transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i> กลับหน้าหลัก</button>
+                <h1 class="text-2xl font-extrabold text-gray-900 flex items-center gap-2"><i data-lucide="folder-open" class="w-6 h-6 text-purple-600"></i> ระบบแฟ้มงบประมาณ</h1>
+            </div>
+            <button onclick="openRequestModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-colors flex items-center gap-2"><i data-lucide="folder-plus" class="w-4 h-4"></i> สร้างแฟ้มใหม่</button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-6 mt-4 lg:mt-0">
+            <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                <p class="text-xs text-gray-500 font-bold mb-1">แฟ้มทั้งหมด</p>
+                <p class="text-xl font-extrabold text-gray-800" id="total-requests-count">0 <span class="text-sm font-normal text-gray-400">แฟ้ม</span></p>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                <p class="text-xs text-gray-500 font-bold mb-1">ยอดรวมประเมิน</p>
+                <p class="text-xl font-extrabold text-purple-600" id="total-budget-amount">0.00 <span class="text-sm font-normal text-gray-400">฿</span></p>
+            </div>
+        </div>
+
+        <div id="budget-list-container" class="space-y-4"></div>
+    </div>
+
+    <button onclick="openRequestModal()" class="lg:hidden fixed bottom-6 right-6 bg-purple-600 text-white w-14 h-14 rounded-full shadow-xl flex items-center justify-center hover:scale-105 transition-transform z-40"><i data-lucide="folder-plus" class="w-6 h-6"></i></button>
+
+    <div id="request-modal" class="hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl relative">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">สร้างแฟ้มงบประมาณใหม่</h2>
+            <form id="request-form" class="space-y-4">
+                
+                <div id="admin-dept-container" class="hidden">
+                    <label class="block text-xs font-bold text-purple-700 mb-1">สร้างในนามฝ่าย (Admin Mode) <span class="text-red-500">*</span></label>
+                    <select id="request-department" class="w-full border border-purple-200 rounded-xl p-2.5 text-sm bg-purple-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none transition-all">
+                        <option value="" disabled selected>-- เลือกฝ่าย --</option>
+                        <option value="อำนวยการ">อำนวยการ</option>
+                        <option value="เลขานุการ">เลขานุการ</option>
+                        <option value="เหรัญญิก">เหรัญญิก</option>
+                        <option value="ทะเบียน">ทะเบียน</option>
+                        <option value="โครงงาน">โครงงาน</option>
+                        <option value="อุปกรณ์">อุปกรณ์</option>
+                        <option value="สถานที่">สถานที่</option>
+                        <option value="สวัสดิการ">สวัสดิการ</option>
+                        <option value="สัมพันธ์ชาวบ้าน">สัมพันธ์ชาวบ้าน</option>
+                        <option value="PR">PR (ประชาสัมพันธ์)</option>
+                        <option value="สปอนเซอร์">สปอนเซอร์</option>
+                        <option value="สันทนาการ">สันทนาการ</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">ชื่อแฟ้ม / หัวข้อ <span class="text-red-500">*</span></label>
+                    <input type="text" id="request-topic" required placeholder="เช่น ซื้อวัตถุดิบทำอาหารวันแรก" class="w-full border border-gray-200 rounded-xl p-2.5 text-sm bg-gray-50 focus:bg-white outline-none">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeRequestModal()" class="flex-1 bg-white border border-gray-200 text-gray-600 py-2.5 rounded-xl font-bold text-sm">ยกเลิก</button>
+                    <button type="submit" id="btn-save-request" class="flex-1 bg-purple-600 text-white py-2.5 rounded-xl font-bold text-sm shadow-md">สร้างแฟ้ม</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 2: สร้างรายการย่อย (Item) -->
+    <div id="item-modal" class="hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 shadow-2xl relative">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2" id="item-modal-title">เพิ่มรายการของ</h2>
+            <form id="item-form" class="space-y-4">
+                <input type="hidden" id="item-id">
+                <input type="hidden" id="parent-request-id">
+                
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">ชื่อรายการ <span class="text-red-500">*</span></label>
+                    <input type="text" id="item-name" required placeholder="ระบุสิ่งที่ต้องการซื้อ" class="w-full border border-gray-200 rounded-xl p-2.5 text-sm bg-gray-50 outline-none">
+                </div>
+
+                <div class="flex gap-3">
+                    <div class="flex-1"><label class="block text-xs font-bold text-gray-700 mb-1">จำนวน</label><input type="number" id="item-quantity" required min="1" value="1" oninput="calcTotal()" class="w-full border border-gray-200 rounded-xl p-2.5 text-sm bg-gray-50 outline-none"></div>
+                    <div class="flex-1"><label class="block text-xs font-bold text-gray-700 mb-1">ราคา/หน่วย</label><input type="number" id="item-unit-price" required min="0" step="0.01" oninput="calcTotal()" class="w-full border border-gray-200 rounded-xl p-2.5 text-sm bg-gray-50 outline-none"></div>
+                    <div class="flex-1"><label class="block text-xs font-bold text-red-600 mb-1">ส่วนลด (฿)</label><input type="number" id="item-discount" min="0" step="0.01" value="0" oninput="calcTotal()" class="w-full border border-red-200 rounded-xl p-2.5 text-sm bg-red-50 outline-none text-red-700"></div>
+                </div>
+
+                <p class="text-right text-lg font-extrabold text-purple-700">รวม: <span id="item-total-display">0.00</span> ฿</p>
+                <input type="hidden" id="item-total-price" value="0">
+
+                <!-- 💖 ระบบให้คะแนนความสำคัญรูปหัวใจ -->
+                <div class="pt-2 border-t border-gray-100">
+                    <label class="block text-xs font-extrabold text-gray-800 mb-2">ระดับความสำคัญ (เรทติ้ง) <span class="text-red-500">*</span></label>
+                    <div class="flex gap-2 justify-center py-2" id="heart-rating-container">
+                        <button type="button" class="heart-btn text-gray-300 hover:scale-125 transition-transform" data-val="1" onclick="setHeartPriority(1)"><i data-lucide="heart" class="w-8 h-8 fill-current"></i></button>
+                        <button type="button" class="heart-btn text-gray-300 hover:scale-125 transition-transform" data-val="2" onclick="setHeartPriority(2)"><i data-lucide="heart" class="w-8 h-8 fill-current"></i></button>
+                        <button type="button" class="heart-btn text-gray-300 hover:scale-125 transition-transform" data-val="3" onclick="setHeartPriority(3)"><i data-lucide="heart" class="w-8 h-8 fill-current"></i></button>
+                        <button type="button" class="heart-btn text-gray-300 hover:scale-125 transition-transform" data-val="4" onclick="setHeartPriority(4)"><i data-lucide="heart" class="w-8 h-8 fill-current"></i></button>
+                        <button type="button" class="heart-btn text-gray-300 hover:scale-125 transition-transform" data-val="5" onclick="setHeartPriority(5)"><i data-lucide="heart" class="w-8 h-8 fill-current"></i></button>
+                    </div>
+                    <input type="hidden" id="item-priority" value="3">
+                    <p id="priority-text" class="text-center text-xs font-bold mt-2 text-pink-500">ระดับ 3: ปานกลาง (ปรับลดได้)</p>
+                </div>
+                
+                <div><label class="block text-xs font-bold text-gray-700 mb-1">หมายเหตุ</label><textarea id="item-remark" rows="2" class="w-full border border-gray-200 rounded-xl p-2.5 text-sm bg-gray-50 outline-none"></textarea></div>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeItemModal()" class="flex-1 bg-white border border-gray-200 text-gray-600 py-2.5 rounded-xl font-bold text-sm">ยกเลิก</button>
+                    <button type="submit" class="flex-1 bg-purple-600 text-white py-2.5 rounded-xl font-bold text-sm shadow-md">บันทึกรายการ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 3: ระบบผู้ร่วมแก้ไข (Collaborators) -->
+    <div id="collab-modal" class="hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl relative">
+            <h2 class="text-lg font-bold text-indigo-800 mb-4 border-b pb-2 flex items-center gap-2"><i data-lucide="users" class="w-5 h-5"></i> จัดการผู้ช่วยร่วมแก้ไข</h2>
+            <input type="hidden" id="collab-request-id">
+            
+            <div class="mb-5">
+                <label class="block text-xs font-bold text-gray-700 mb-1">เพิ่มสมาชิกในฝ่ายเดียวกันให้เข้ามาช่วยแก้ไขแฟ้มนี้</label>
+                <div class="flex gap-2">
+                    <select id="collab-select" class="flex-1 border border-gray-200 rounded-xl p-2.5 text-sm bg-gray-50 focus:bg-white outline-none">
+                        <option value="" disabled selected>-- เลือกสมาชิก --</option>
+                    </select>
+                    <button type="button" onclick="addCollaborator()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-md">เพิ่มผู้ช่วย</button>
+                </div>
+            </div>
+
+            <div>
+                <p class="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">ผู้มีสิทธิ์แก้ไขแฟ้มนี้ปัจจุบัน:</p>
+                <ul id="collab-list" class="space-y-2 max-h-48 overflow-y-auto">
+                    <!-- รายชื่อแสดงตรงนี้ -->
+                </ul>
+            </div>
+
+            <div class="mt-5 pt-3 border-t border-gray-100">
+                <button type="button" onclick="closeCollabModal()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-bold text-sm transition">เสร็จสิ้น / ปิดหน้าต่าง</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/supabase.js"></script>
+    <script src="../js/budget-plan.js"></script>
+</body>
+</html>

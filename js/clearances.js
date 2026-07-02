@@ -30,9 +30,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (draftId) await loadDraftData(draftId);
 });
 
-// ... [โค้ดเดิม loadCamps, loadDraftData, calculateTotalAmount, setupDynamicItems, setupBankOptions] ...
-// (เพื่อความสมบูรณ์ ผมรวบรวมฟังก์ชันเหล่านั้นมาให้ครบด้วยครับ)
-
 async function loadCamps() {
     const selectEl = document.getElementById('camp-select');
     const { data: camps } = await supabaseClient.from('camps').select('id, name, is_active').order('created_at', { ascending: false });
