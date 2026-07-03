@@ -357,3 +357,146 @@ function toggleActionMenu() {
     const overlay = document.getElementById('action-menu-overlay');
     if (overlay) overlay.classList.toggle('hidden');
 }
+
+// =================   ระบบดึงข้อมูลจากแฟ้มงบประมาณ ================= //
+let availableBudgetItems = [];
+
+window.openImportBudgetModal = async function() {
+    const campSelect = document.getElementById('camp-select');
+    const campId = campSelect?.value;
+    const dept = document.getElementById('department-select')?.value;
+    
+    if (!campId || !dept) {
+        return Swal.fire('แจ้งเตือน', 'กรุณาเลือก "โครงการ" และ "ฝ่าย" ด้านบนก่อนกดดึงข้อมูลครับ', 'warning');
+    }
+
+    document.getElementById('import-budget-modal').classList.remove('hidden');
+    const listContainer = document.getElementById('import-budget-list');
+    listContainer.innerHTML = '<div class="text-center py-8 text-gray-400"><i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2"></i> กำลังโหลด...</div>';
+    lucide.createIcons();
+
+    try {
+        // ดึงแฟ้มงบที่ตรวจแล้วของฝ่ายในค่ายนี้
+        const { data: requests, error } = await supabaseClient
+            .from('budget_requests')
+            .select('*, budget_items(*)')
+            .eq('camp_id', campId)
+            .eq('department', dept)
+            .eq('status', 'reviewed');
+
+        if (error) throw error;
+
+        availableBudgetItems = [];
+        let html = '';
+
+        if (requests && requests.length > 0) {
+            requests.forEach(req => {
+                // กรองเอาเฉพาะไอเทมที่แอดมิน "อนุมัติแล้ว"
+                const approvedItems = (req.budget_items || []).filter(item => item.item_status === 'approved');
+                
+                if (approvedItems.length > 0) {
+                    html += `<div class="mb-5">
+                        <h4 class="text-[11px] font-extrabold text-fuchsia-700 mb-2 border-b border-fuchsia-100 pb-1.5 flex items-center gap-1.5"><i data-lucide="folder" class="w-3.5 h-3.5"></i> ${req.topic_name}</h4>
+                        <div class="space-y-2">`;
+                    
+                    approvedItems.forEach(item => {
+                        availableBudgetItems.push(item);
+                        html += `
+                        <label class="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-fuchsia-400 transition-colors shadow-sm">
+                            <input type="checkbox" value="${item.id}" class="import-checkbox w-4 h-4 text-fuchsia-600 rounded border-gray-300 focus:ring-fuchsia-500">
+                            <div class="flex-1 pr-2">
+                                <p class="text-sm font-bold text-gray-800 leading-tight">${item.item_name}</p>
+                                <p class="text-[10px] text-gray-500 mt-0.5">${item.quantity} x ${parseFloat(item.unit_price).toLocaleString()} ฿</p>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <p class="text-sm font-extrabold text-fuchsia-600">${parseFloat(item.total_price).toLocaleString()} ฿</p>
+                            </div>
+                        </label>`;
+                    });
+                    html += `</div></div>`;
+                }
+            });
+        }
+
+        if (html === '') {
+            listContainer.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm bg-white rounded-xl border border-dashed border-gray-200">ไม่พบรายการงบประมาณที่อนุมัติแล้ว<br>ในฝ่ายของคุณ</div>';
+        } else {
+            listContainer.innerHTML = html;
+        }
+        lucide.createIcons();
+    } catch (err) {
+        listContainer.innerHTML = `<div class="text-center py-8 text-red-500 text-xs">ข้อผิดพลาด: ${err.message}</div>`;
+    }
+};
+
+window.closeImportBudgetModal = function() {
+    document.getElementById('import-budget-modal').classList.add('hidden');
+};
+
+window.confirmImportBudget = function() {
+    const checkboxes = document.querySelectorAll('.import-checkbox:checked');
+    if (checkboxes.length === 0) {
+        return closeImportBudgetModal();
+    }
+
+    const container = document.getElementById('items-container');
+    
+    // เคลียร์ช่องว่างๆ ทิ้งไป 1 ช่อง (ถ้ามันเพิ่งถูกสร้างขึ้นมาแล้วยังไม่ได้พิมพ์อะไร)
+    const existingRows = container.querySelectorAll('.item-row');
+    if (existingRows.length === 1) {
+        const firstRow = existingRows[0];
+        const desc = firstRow.querySelector('.item-desc').value;
+        const amt = firstRow.querySelector('.item-amount').value;
+        if (!desc && !amt) {
+            firstRow.remove();
+        }
+    }
+    
+    checkboxes.forEach(cb => {
+        const item = availableBudgetItems.find(i => i.id === cb.value);
+        if (item) {
+            const rowHTML = `
+                <div class="item-row bg-gray-50 border border-gray-100 rounded-xl p-4 relative group mt-4 slide-down">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-[11px] font-bold text-gray-400 bg-white px-2.5 py-1 rounded-md shadow-sm border border-gray-100 item-number">ชิ้นที่ X</span>
+                        <button type="button" class="btn-remove-item text-gray-400 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><i data-lucide="align-left" class="w-4 h-4 text-gray-400"></i></div>
+                            <input type="text" placeholder="ชื่อรายการ" required value="${item.item_name}" class="item-desc w-full border border-gray-200 bg-white rounded-lg py-2.5 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all">
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="col-span-1 relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><span class="text-gray-400 font-medium text-[10px]">จำนวน</span></div>
+                                <input type="number" placeholder="1" value="${item.quantity}" min="0.01" step="0.01" required class="item-qty w-full border border-gray-200 bg-white rounded-lg py-2.5 pl-10 pr-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-center">
+                            </div>
+                            <div class="col-span-2 relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><span class="text-gray-400 font-medium text-xs">รวม (฿)</span></div>
+                                <input type="number" placeholder="ราคารวม" step="0.01" min="0.01" value="${item.total_price}" required class="item-amount w-full border border-gray-200 bg-white rounded-lg py-2.5 pl-12 pr-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-right font-bold text-blue-700">
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            container.insertAdjacentHTML('beforeend', rowHTML);
+        }
+    });
+
+    lucide.createIcons();
+    
+    // อัปเดตตัวเลขลำดับ (ชิ้นที่...) ให้ถูกต้อง
+    const rows = container.querySelectorAll('.item-row');
+    rows.forEach((row, index) => {
+        row.querySelector('.item-number').innerText = `ชิ้นที่ ${index + 1}`;
+        const btnRemove = row.querySelector('.btn-remove-item');
+        if(rows.length === 1) { btnRemove.disabled = true; btnRemove.classList.add('opacity-0'); } 
+        else { btnRemove.disabled = false; btnRemove.classList.remove('opacity-0'); }
+    });
+
+    // คำนวณยอดเงินรวมใหม่ทันที
+    let total = 0;
+    document.querySelectorAll('.item-amount').forEach(input => { total += parseFloat(input.value) || 0; });
+    document.getElementById('total-amount').innerText = total.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+    
+    closeImportBudgetModal();
+};
