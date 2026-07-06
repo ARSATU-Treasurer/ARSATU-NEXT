@@ -192,17 +192,19 @@ async function handleTransferMoney(e) {
 
         await supabaseClient.from('transactions').insert([
             {
+                camp_id: 'ffffffff-ffff-ffff-ffff-ffffffffffff', // 🌟 เพิ่มบรรทัดนี้
                 bank_account_id: fromId,
                 transaction_type: 'expense',
                 amount: amount,
-                description: `โอนเงินออกไปยังบัญชี: ${currentBankTo.name}${descSuffix}`,
+                description: `โอนเงินไป: ${currentBankTo.name}${descSuffix}`,
                 created_by: session.user.id
             },
             {
+                camp_id: 'ffffffff-ffff-ffff-ffff-ffffffffffff', // 🌟 เพิ่มบรรทัดนี้
                 bank_account_id: toId,
                 transaction_type: 'income',
                 amount: amount,
-                description: `รับเงินโอนเข้าจากบัญชี: ${currentBankFrom.name}${descSuffix}`,
+                description: `โอนเงินจาก: ${currentBankFrom.name}${descSuffix}`,
                 created_by: session.user.id
             }
         ]);

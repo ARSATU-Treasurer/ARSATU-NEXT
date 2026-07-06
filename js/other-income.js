@@ -28,6 +28,7 @@ async function loadEditData(id) {
         
         if (item) {
             document.getElementById('other-type').value = item.request_type;
+            document.getElementById('other-context').value = item.camp_id === 'ffffffff-ffff-ffff-ffff-ffffffffffff' ? 'ffffffff-ffff-ffff-ffff-ffffffffffff' : 'current';
             
             // ตัดคำนำหน้า (เช่น "รายรับอื่นๆ: ") ออกเพื่อแสดงแค่รายละเอียด
             let details = item.purpose;
@@ -104,9 +105,12 @@ async function handleOtherSubmit(e) {
             receiptUrlArray = [urlData.publicUrl];
         }
 
+        const contextValue = document.getElementById('other-context').value;
+        const finalCampId = contextValue === 'current' ? currentCampId : contextValue;
+
         const payload = {
             user_id: currentUser.id,
-            camp_id: currentCampId,
+            camp_id: finalCampId, // 🌟 ใช้ finalCampId แทน currentCampId
             status: 'pending',
             request_type: type,
             total_amount: amount,

@@ -104,7 +104,7 @@ function renderHistory(clearances) {
                         <span class="text-[10px] text-gray-400">${date}</span>
                     </div>
                     <h3 class="font-bold text-gray-800 text-sm truncate">${item.purpose}</h3>
-                    <p class="text-xs text-gray-500 mt-1 truncate">โครงการ: ${item.camps.name}</p>
+                    <p class="text-xs text-gray-500 mt-1 truncate">โครงการ: ${item.camps?.name || 'การเงินกลาง (ส่วนกลาง)'}</p>
                 </div>
                 
                 <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
@@ -196,7 +196,7 @@ async function viewDetails(clearanceId) {
             ${reasonHTML}
             <div class="space-y-2 border-b border-gray-100 pb-4">
                 <p class="text-xs text-gray-500">หัวข้อ: <span class="font-bold text-gray-800 text-sm">${clearance.purpose}</span></p>
-                <p class="text-xs text-gray-500">โครงการ: <span class="font-bold text-gray-800">${clearance.camps.name}</span></p>
+                <p><b>โครงการ:</b> ${clearance.camps?.name || 'การเงินกลาง (ส่วนกลาง)'}</p>
             </div>
             <div>
                 <p class="text-xs font-bold text-gray-700 mb-2 bg-gray-100 p-2 rounded-lg">รายการสินค้า</p>
