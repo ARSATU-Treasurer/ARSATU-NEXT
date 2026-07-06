@@ -1,43 +1,78 @@
 // js/other-income.js
 let currentUser = null;
 let currentCampId = null;
+let editId = new URLSearchParams(window.location.search).get('id'); // ดักจับ ID หากกดปุ่มแก้ไขมา
 
 document.addEventListener('DOMContentLoaded', async () => {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) return window.location.href = '../index.html';
     currentUser = session.user;
-
+    
     const { data: camp } = await supabaseClient.from('camps').select('id').eq('is_active', true).single();
     if (camp) {
         currentCampId = camp.id;
         fetchMyOtherHistory();
+        
+        // ถ้าเป็นการกดแก้ไขเข้ามา ให้โหลดข้อมูลเดิม
+        if (editId) loadEditData(editId);
     }
-
+    
     document.getElementById('form-other').addEventListener('submit', handleOtherSubmit);
 });
 
+// ฟังก์ชันโหลดข้อมูลเดิมมาใส่ในฟอร์มเมื่อถูกตีกลับ หรือเป็นแบบร่าง
+async function loadEditData(id) {
+    try {
+        const { data: item, error } = await supabaseClient.from('clearances').select('*').eq('id', id).single();
+        if (error) throw error;
+        
+        if (item) {
+            document.getElementById('other-type').value = item.request_type;
+            
+            // ตัดคำนำหน้า (เช่น "รายรับอื่นๆ: ") ออกเพื่อแสดงแค่รายละเอียด
+            let details = item.purpose;
+            if (details.includes(': ')) {
+                details = details.substring(details.indexOf(': ') + 2);
+            }
+            document.getElementById('other-details').value = details;
+            document.getElementById('other-date').value = item.created_at.split('T')[0];
+            document.getElementById('other-amount').value = item.total_amount;
+            document.getElementById('other-remark').value = item.remark || '';
+            
+            // กรณีแก้ไข ไม่บังคับให้อัปโหลดสลิปใหม่ (ใช้ของเดิมได้)
+            document.getElementById('other-slip').removeAttribute('required');
+            
+            // เปลี่ยนข้อความปุ่ม
+            const btn = document.querySelector('#form-other button[type="submit"]');
+            btn.innerHTML = '<i data-lucide="edit-3" class="w-5 h-5 inline mb-0.5"></i> บันทึกการแก้ไขและส่งใหม่';
+            lucide.createIcons();
+        }
+    } catch (err) {
+        console.error("Load Edit Data Error:", err);
+    }
+}
+
 async function handleOtherSubmit(e) {
     e.preventDefault();
-
     const type = document.getElementById('other-type').value;
     const amount = parseFloat(document.getElementById('other-amount').value);
     const details = document.getElementById('other-details').value;
     const date = document.getElementById('other-date').value;
 
-    const typeLabel = type === 'other_income' ? 'รายรับเข้า (Income)' : 'รายจ่ายออก (Expense)';
+    const typeLabel = type === 'other_income' ? 'รายรับอื่นๆ (Income)' : 'รายจ่ายอื่นๆ (Expense)';
     const typeColor = type === 'other_income' ? 'text-teal-600' : 'text-rose-600';
     const bgAmount = type === 'other_income' ? 'bg-teal-50 border-teal-200' : 'bg-rose-50 border-rose-200';
 
-    // 🌟 เพิ่ม Pop-up ยืนยันการทำรายการเบ็ดเตล็ด
+    // Pop-up ยืนยัน
     const confirmResult = await Swal.fire({
-        title: 'ยืนยันแจ้งรายการบัญชี?',
+        title: 'ยืนยันการทำรายการ',
         icon: 'info',
         html: `
             <div class="text-left text-sm mt-3 border-t border-gray-100 pt-4 space-y-2">
                 <p class="text-gray-500">ประเภท: <span class="font-bold ${typeColor}">${typeLabel}</span></p>
                 <p class="text-gray-500">รายละเอียด: <span class="font-bold text-gray-800">${details}</span></p>
                 <div class="${bgAmount} p-4 rounded-xl border mt-3 text-center">
-                    <p class="${typeColor} font-bold text-xs mb-1">ยอดเงินทำรายการ</p>
+                    <p class="${typeColor} font-bold text-xs mb-1">ยอดเงิน</p>
                     <p class="text-3xl font-extrabold ${typeColor}">${amount.toLocaleString('th-TH', {minimumFractionDigits: 2})} ฿</p>
                 </div>
             </div>
@@ -45,7 +80,7 @@ async function handleOtherSubmit(e) {
         showCancelButton: true,
         confirmButtonColor: type === 'other_income' ? '#0d9488' : '#e11d48',
         cancelButtonColor: '#9ca3af',
-        confirmButtonText: 'ยืนยันส่งข้อมูล',
+        confirmButtonText: 'ยืนยันข้อมูล',
         cancelButtonText: 'ยกเลิก',
         reverseButtons: true
     });
@@ -53,15 +88,21 @@ async function handleOtherSubmit(e) {
     if (!confirmResult.isConfirmed) return;
 
     const btn = e.target.querySelector('button');
-    btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin inline"></i> กำลังส่งข้อมูล...';
+    btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin inline"></i> กำลังบันทึก...';
     lucide.createIcons();
 
     try {
         const file = document.getElementById('other-slip').files[0];
-        const ext = file.name.split('.').pop(); // ดึงนามสกุลไฟล์ (.jpg, .pdf)
-        const filePath = `reports/others_${Date.now()}.${ext}`; // ข้ามชื่อไฟล์ไทยไปเลย
-        await supabaseClient.storage.from('receipts').upload(filePath, file);
-        const { data: urlData } = supabaseClient.storage.from('receipts').getPublicUrl(filePath);
+        let receiptUrlArray = null;
+
+        // อัปโหลดไฟล์ใหม่ (ถ้ามีการเลือกไฟล์)
+        if (file) {
+            const ext = file.name.split('.').pop();
+            const filePath = `reports/others_${Date.now()}.${ext}`;
+            await supabaseClient.storage.from('receipts').upload(filePath, file);
+            const { data: urlData } = supabaseClient.storage.from('receipts').getPublicUrl(filePath);
+            receiptUrlArray = [urlData.publicUrl];
+        }
 
         const payload = {
             user_id: currentUser.id,
@@ -69,21 +110,37 @@ async function handleOtherSubmit(e) {
             status: 'pending',
             request_type: type,
             total_amount: amount,
-            purpose: `${type === 'other_income' ? 'รายรับอื่น':'รายจ่ายอื่น'}: ${details}`,
+            purpose: `${type === 'other_income' ? 'รายรับอื่นๆ' : 'รายจ่ายอื่นๆ'}: ${details}`,
             remark: document.getElementById('other-remark').value,
-            receipt_image_url: JSON.stringify([urlData.publicUrl]),
             created_at: new Date(date).toISOString(),
-            department: 'ทั่วไป'
+            department: 'ส่วนกลาง',
+            reject_reason: null // เคลียร์หมายเหตุการตีกลับเมื่อส่งบิลใหม่
         };
 
-        const { error } = await supabaseClient.from('clearances').insert([payload]);
-        if (error) throw error;
+        if (receiptUrlArray) {
+            payload.receipt_image_url = JSON.stringify(receiptUrlArray);
+        }
 
-        await Swal.fire('สำเร็จ', 'ส่งบันทึกรายการบัญชีให้เหรัญญิกตรวจสอบแล้ว', 'success');
-        e.target.reset(); document.getElementById('other-date').value = new Date().toISOString().split('T')[0];
-        fetchMyOtherHistory();
+        if (editId) {
+            // อัปเดตรายการเดิม
+            const { error } = await supabaseClient.from('clearances').update(payload).eq('id', editId);
+            if (error) throw error;
+            await Swal.fire('สำเร็จ', 'บันทึกการแก้ไขและส่งรายการใหม่เรียบร้อย', 'success');
+            window.location.href = 'history.html';
+        } else {
+            // สร้างรายการใหม่
+            const { error } = await supabaseClient.from('clearances').insert([payload]);
+            if (error) throw error;
+            await Swal.fire('สำเร็จ', 'ส่งรายการเรียบร้อย', 'success');
+            e.target.reset(); 
+            document.getElementById('other-date').value = new Date().toISOString().split('T')[0];
+            fetchMyOtherHistory();
+        }
     } catch (err) { Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); }
-    finally { btn.disabled = false; btn.innerText = 'ส่งรายการบัญชี'; }
+    finally { 
+        btn.disabled = false; 
+        btn.innerHTML = editId ? 'บันทึกการแก้ไขและส่งใหม่' : 'ส่งรายการบัญชี'; 
+    }
 }
 
 async function fetchMyOtherHistory() {
@@ -91,12 +148,19 @@ async function fetchMyOtherHistory() {
     const { data: items } = await supabaseClient.from('clearances').select('*').eq('user_id', currentUser.id).in('request_type', ['other_income', 'other_expense']).order('created_at', { ascending: false });
 
     if (!items || items.length === 0) {
-        container.innerHTML = '<p class="text-center text-gray-400 py-4 text-xs">ยังไม่มีประวัติรายการเบ็ดเตล็ด</p>';
+        container.innerHTML = '<p class="text-center text-gray-400 py-4 text-xs">ยังไม่มีประวัติรายการ</p>';
         return;
     }
 
     container.innerHTML = items.map(item => {
         const isInc = item.request_type === 'other_income';
+        
+        // 🌟 แก้บั๊ก: จัดการการแสดงผลป้ายสถานะให้ครอบคลุม "ถูกตีกลับ"
+        let statusBadge = '';
+        if (item.status === 'cleared') statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">สำเร็จ</span>';
+        else if (item.status === 'rejected') statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">ถูกตีกลับ</span>';
+        else statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 font-bold">รอตรวจสอบ</span>';
+
         return `
             <div class="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center shadow-sm">
                 <div>
@@ -104,8 +168,8 @@ async function fetchMyOtherHistory() {
                     <p class="text-[10px] text-gray-400">${new Date(item.created_at).toLocaleDateString('th-TH')}</p>
                 </div>
                 <div class="text-right">
-                    <p class="text-sm font-bold ${isInc ? 'text-teal-600':'text-red-500'}">${isInc ? '+':'-'}${parseFloat(item.total_amount).toLocaleString()} ฿</p>
-                    <span class="text-[9px] px-1.5 py-0.5 rounded-full ${item.status === 'cleared' ? 'bg-green-100 text-green-700':'bg-orange-100 text-orange-700'}">${item.status === 'cleared' ? 'อนุมัติแล้ว':'รอตรวจสอบ'}</span>
+                    <p class="text-sm font-bold ${isInc ? 'text-teal-600':'text-red-500'} mb-1">${isInc ? '+':'-'}${parseFloat(item.total_amount).toLocaleString()} ฿</p>
+                    ${statusBadge}
                 </div>
             </div>`;
     }).join('');
@@ -118,7 +182,7 @@ function toggleActionMenu() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session) return; 
+    if (!session) return;
     const { data: profile } = await supabaseClient.from('profiles').select('role').eq('id', session.user.id).single();
     if (profile && profile.role === 'admin') {
         const adminLink = document.getElementById('admin-action-link');

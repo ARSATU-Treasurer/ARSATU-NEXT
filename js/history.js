@@ -48,49 +48,47 @@ function renderHistory(clearances) {
     container.innerHTML = '';
 
     clearances.forEach(item => {
-        // ค่า Default เริ่มต้น (สำหรับ pending)
+        // จัดการสีและข้อความของสถานะมุมขวาบน
         let statusConfig = { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-100', icon: 'clock', label: 'รอตรวจสอบ' };
-        
         if (item.status === 'draft') statusConfig = { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-gray-200', icon: 'edit-3', label: 'แบบร่าง' };
-        
         if (item.status === 'approved') {
-            if (item.request_type === 'advance') {
-                statusConfig = { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100', icon: 'send', label: 'รอเคลียร์บิล' };
-            } else {
-                statusConfig = { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-100', icon: 'check-circle', label: 'อนุมัติแล้ว' };
-            }
+            if (item.request_type === 'advance') statusConfig = { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100', icon: 'send', label: 'รอโอนเงิน' };
+            else statusConfig = { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-100', icon: 'check-circle', label: 'อนุมัติแล้ว' };
         }
-        
-        if (item.status === 'pending_clearance') statusConfig = { bg: 'bg-yellow-50', text: 'text-yellow-600', border: 'border-yellow-100', icon: 'calculator', label: 'รอตรวจเคลียร์บิล' };
-        if (item.status === 'advance_transferred') statusConfig = { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-100', icon: 'alert-circle', label: 'ตีกลับให้แก้บิล' };
-        
+        if (item.status === 'pending_clearance') statusConfig = { bg: 'bg-yellow-50', text: 'text-yellow-600', border: 'border-yellow-100', icon: 'calculator', label: 'รอตรวจบิล' };
+        if (item.status === 'advance_transferred') statusConfig = { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-100', icon: 'alert-circle', label: 'รอเคลียร์บิล' };
         if (item.status === 'cleared') statusConfig = { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100', icon: 'check-check', label: 'เคลียร์บิลแล้ว' };
         if (item.status === 'rejected') statusConfig = { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-100', icon: 'x-circle', label: 'ถูกตีกลับ' };
 
-        const typeLabel = item.request_type === 'advance' ? 'ยืมทดรอง' : 'เบิกเงินคืน';
+        // 🌟 แก้บั๊ก 1: จัดการป้ายกำกับประเภทบิล (Type Label) ให้ครบทุกแบบ
+        let typeLabel = '';
+        let typeColor = 'text-blue-600 bg-blue-50'; // สีเริ่มต้น
+        if (item.request_type === 'advance') typeLabel = 'ยืมเงินทดรองจ่าย';
+        else if (item.request_type === 'reimburse') typeLabel = 'เบิกเงินคืน';
+        else if (item.request_type === 'other_income') { typeLabel = 'รายรับอื่นๆ'; typeColor = 'text-teal-600 bg-teal-50'; }
+        else if (item.request_type === 'other_expense') { typeLabel = 'รายจ่ายอื่นๆ'; typeColor = 'text-orange-600 bg-orange-50'; }
+        else if (item.request_type === 'income') { typeLabel = 'รับบริจาค'; typeColor = 'text-pink-600 bg-pink-50'; }
+
         const date = new Date(item.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
         const amount = parseFloat(item.total_amount).toLocaleString('th-TH', { minimumFractionDigits: 2 });
 
-        // สร้างปุ่ม Action แบบ Dynamic
+        // 🌟 แก้บั๊ก 2: แยกลิงก์ปุ่มแก้ไขให้ไปถูกหน้า (หน้า clearances หรือ หน้า other-income)
+        let targetPage = 'clearances.html';
+        if (item.request_type === 'other_income' || item.request_type === 'other_expense') targetPage = 'other-income.html';
+        else if (item.request_type === 'income') targetPage = 'donations.html';
+
         let actionButton = '';
         if (item.status === 'draft') {
-            actionButton = `<a href="clearances.html?id=${item.id}" onclick="event.stopPropagation()" class="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200 relative z-10">✏️ แก้ไขร่าง</a>`;
-        } 
-        else if (item.status === 'pending') {
-            actionButton = `<button onclick="recallRequest('${item.id}', event)" class="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 border border-gray-200 rounded-lg font-bold hover:bg-gray-200 relative z-10 flex items-center gap-1 shadow-sm"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> ดึงกลับมาแก้ไข</button>`;
-        }
-        // 🌟 เพิ่มปุ่ม: แก้ไขคำขอเบิกตั้งต้น (ที่โดนตีกลับ)
-        else if (item.status === 'rejected') {
-            actionButton = `<a href="clearances.html?id=${item.id}" onclick="event.stopPropagation()" class="text-xs bg-red-500 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm hover:bg-red-600 relative z-10">✏️ แก้ไขคำขอ</a>`;
-        } 
-        // 🌟 เพิ่มปุ่ม: แก้ไขบิลเคลียร์ (ที่โดนตีกลับ)
-        else if (item.status === 'advance_transferred') {
-            actionButton = `<a href="clear-bill.html?id=${item.id}" onclick="event.stopPropagation()" class="text-xs bg-red-500 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm hover:bg-red-600 relative z-10">✏️ แก้บิลใหม่</a>`;
-        } 
-        else if (item.status === 'approved' && item.request_type === 'advance') {
-            actionButton = `<a href="clear-bill.html?id=${item.id}" onclick="event.stopPropagation()" class="text-xs bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm hover:bg-emerald-600 relative z-10">💸 เคลียร์บิล</a>`;
-        } 
-        else if (item.status === 'cleared') {
+            actionButton = `<a href="${targetPage}?id=${item.id}" onclick="event.stopPropagation()" class="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200 relative z-10">แก้ไข/ส่งคำขอ</a>`;
+        } else if (item.status === 'pending') {
+            actionButton = `<button onclick="recallRequest('${item.id}', event)" class="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 border border-gray-200 rounded-lg font-bold hover:bg-gray-200 relative z-10 flex items-center gap-1 shadow-sm"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> ดึงคำขอกลับ</button>`;
+        } else if (item.status === 'rejected') {
+            actionButton = `<a href="${targetPage}?id=${item.id}" onclick="event.stopPropagation()" class="text-xs bg-red-500 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm hover:bg-red-600 relative z-10">แก้ไขคำขอ</a>`;
+        } else if (item.status === 'advance_transferred') {
+            actionButton = `<a href="clear-bill.html?id=${item.id}" onclick="event.stopPropagation()" class="text-xs bg-red-500 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm hover:bg-red-600 relative z-10">เคลียร์เงินทอน</a>`;
+        } else if (item.status === 'approved' && item.request_type === 'advance') {
+            actionButton = `<a href="clear-bill.html?id=${item.id}" onclick="event.stopPropagation()" class="text-xs bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm hover:bg-emerald-600 relative z-10">เคลียร์เงินทอน</a>`;
+        } else if (item.status === 'cleared') {
             actionButton = `<span class="text-xs text-emerald-600 font-bold"><i data-lucide="check-circle" class="w-3 h-3 inline"></i> สำเร็จ</span>`;
         }
 
@@ -102,7 +100,7 @@ function renderHistory(clearances) {
                 
                 <div class="pr-24">
                     <div class="flex items-center gap-2 mb-1.5">
-                        <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">${typeLabel}</span>
+                        <span class="text-xs font-bold ${typeColor} px-2 py-0.5 rounded">${typeLabel}</span>
                         <span class="text-[10px] text-gray-400">${date}</span>
                     </div>
                     <h3 class="font-bold text-gray-800 text-sm truncate">${item.purpose}</h3>
@@ -110,13 +108,14 @@ function renderHistory(clearances) {
                 </div>
                 
                 <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
-                    ${actionButton ? actionButton : `<span class="text-[11px] text-gray-400 font-medium hover:text-blue-500">กดเพื่อดูรายละเอียด</span>`}
+                    ${actionButton ? actionButton : `<span class="text-[11px] text-gray-400 font-medium hover:text-blue-500">แตะเพื่อดูรายละเอียด</span>`}
                     <span class="text-lg font-extrabold text-gray-800">${amount} ฿</span>
                 </div>
             </div>
         `;
         container.insertAdjacentHTML('beforeend', cardHTML);
     });
+
     lucide.createIcons();
 }
 
