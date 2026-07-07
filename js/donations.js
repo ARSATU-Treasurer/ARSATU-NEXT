@@ -73,7 +73,7 @@ async function handleDonationSubmit(e) {
             remark: document.getElementById('don-remark').value,
             receipt_image_url: JSON.stringify([urlData.publicUrl]),
             created_at: new Date(date).toISOString(),
-            department: 'ทั่วไป'
+            department: 'ส่วนกลาง'
         };
 
         const { error } = await supabaseClient.from('clearances').insert([payload]);

@@ -1,11 +1,10 @@
 // js/ledger.js
 
-let currentLedgerView = 'main'; // ค่าเริ่มต้นเป็นสมุดบัญชีรวมทั้งหมด
+let currentLedgerView = 'main';
 let cachedProfileName = 'ไม่ระบุชื่อ';
-let allCamps = []; // เก็บรายชื่อค่ายทั้งหมด
+let allCamps = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 🌟 1. เตรียมข้อมูลพื้นฐาน (Profile, Role)
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
         const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
@@ -18,24 +17,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 🌟 2. ดึงรายชื่อค่ายทั้งหมดมาใส่ Dropdown
     await loadCampsForLedger();
-
-    // 🌟 3. สั่งโหลดข้อมูลตารางและบัญชี
     fetchGlobalBanks();
     fetchLedgerTransactions();
 });
 
-// ================= ระบบแท็บและการแสดงผล (UI State) ================= //
+// ================= ระบบแท็บและการแสดงผล ================= //
 
 async function loadCampsForLedger() {
     const campSelect = document.getElementById('camp-filter');
     try {
         const { data: camps, error } = await supabaseClient.from('camps').select('*').order('created_at', { ascending: false });
         if (error) throw error;
-
         allCamps = camps || [];
-        
         if (allCamps.length > 0) {
             campSelect.innerHTML = allCamps.map(c => 
                 `<option value="${c.id}" ${c.is_active ? 'selected' : ''}>${c.name} ${c.is_active ? '(ปัจจุบัน)' : ''}</option>`
@@ -43,14 +37,11 @@ async function loadCampsForLedger() {
         } else {
             campSelect.innerHTML = '<option value="">ไม่มีข้อมูลโครงการ</option>';
         }
-    } catch (e) {
-        console.error("Load camps error:", e);
-    }
+    } catch (e) { console.error("Load camps error:", e); }
 }
 
 window.switchLedgerTab = function(tabType) {
     currentLedgerView = tabType;
-    
     const btnMain = document.getElementById('tab-main');
     const btnProject = document.getElementById('tab-project');
     const exportDiv = document.getElementById('project-export-actions');
@@ -60,98 +51,75 @@ window.switchLedgerTab = function(tabType) {
     if(tabType === 'main') {
         btnMain.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-emerald-600 shadow-sm border border-gray-100 transition-all";
         btnProject.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all";
-        
         if(exportDiv) exportDiv.classList.add('hidden');
-        if(filtersDiv) filtersDiv.classList.add('hidden'); // ซ่อนตัวกรอง
-        if(banksDiv) banksDiv.classList.remove('hidden');  // โชว์ยอดบัญชีธนาคาร
+        if(filtersDiv) filtersDiv.classList.add('hidden'); 
+        if(banksDiv) banksDiv.classList.remove('hidden');  
     } else {
         btnProject.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-emerald-600 shadow-sm border border-gray-100 transition-all";
         btnMain.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all";
-        
         if(exportDiv) exportDiv.classList.remove('hidden');
-        if(filtersDiv) filtersDiv.classList.remove('hidden'); // โชว์ตัวกรองค่าย/ฝ่าย
-        if(banksDiv) banksDiv.classList.add('hidden'); // ซ่อนยอดบัญชีธนาคาร
+        if(filtersDiv) filtersDiv.classList.remove('hidden'); 
+        if(banksDiv) banksDiv.classList.add('hidden'); 
     }
-    
-    fetchLedgerTransactions(); // รีโหลดตารางใหม่ตามแท็บ
-};
-
-window.handleFilterChange = function() {
     fetchLedgerTransactions();
 };
+
+window.handleFilterChange = function() { fetchLedgerTransactions(); };
 
 function toggleActionMenu() {
     const overlay = document.getElementById('action-menu-overlay');
     if (overlay) overlay.classList.toggle('hidden');
 }
 
-// ================= โหลดข้อมูลสมุดบัญชี (Core Ledger) ================= //
+// ================= โหลดข้อมูลสมุดบัญชีหน้าเว็บ ================= //
 
 async function fetchGlobalBanks() {
     const container = document.getElementById('global-banks-container');
     try {
         const { data: banks, error } = await supabaseClient.from('bank_accounts').select('*');
         if (error) throw error;
-
         if (!banks || banks.length === 0) {
-            container.innerHTML = '<div class="text-center py-5 text-gray-400 bg-white rounded-2xl border border-gray-100 col-span-full">ยังไม่มีข้อมูลบัญชี</div>';
+            container.innerHTML = '<div class="text-center py-5 text-gray-400">ยังไม่มีข้อมูลบัญชี</div>';
             return;
         }
-
         container.innerHTML = banks.map(b => {
             const hexColor = b.color || '#3B82F6'; 
             return `
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-                <div class="w-12 h-12 rounded-full border-2 flex items-center justify-center shrink-0" 
-                     style="background-color: ${hexColor}15; border-color: ${hexColor}30; color: ${hexColor};">
+                <div class="w-12 h-12 rounded-full border-2 flex items-center justify-center shrink-0" style="background-color: ${hexColor}15; border-color: ${hexColor}30; color: ${hexColor};">
                     <i data-lucide="building" class="w-6 h-6"></i>
                 </div>
                 <div>
                     <p class="text-[10px] text-gray-500 font-bold uppercase">${b.name}</p>
-                    <p class="font-extrabold text-lg" style="color: ${hexColor};">
-                        ${parseFloat(b.balance).toLocaleString('th-TH', {minimumFractionDigits: 2})} ฿
-                    </p>
+                    <p class="font-extrabold text-lg" style="color: ${hexColor};">${parseFloat(b.balance).toLocaleString('th-TH', {minimumFractionDigits: 2})} ฿</p>
                 </div>
             </div>`;
         }).join('');
         lucide.createIcons();
-    } catch (err) { console.error("Bank Error:", err); }
+    } catch (err) { console.error(err); }
 }
 
 async function fetchLedgerTransactions() {
     const container = document.getElementById('ledger-container');
-    container.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-2"></i> กำลังโหลดรายการ...</td></tr>`;
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-
+    container.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400">กำลังโหลดรายการ...</td></tr>`;
     try {
-        let query = supabaseClient
-            .from('transactions')
-            .select(`*, clearances (purpose, department)`)
-            .order('created_at', { ascending: false });
-
+        let query = supabaseClient.from('transactions').select(`*, clearances (purpose, department)`).order('created_at', { ascending: false });
         let selectedDept = 'all';
-
-        // 🌟 ถ้าอยู่แท็บ Project ให้กรองเฉพาะค่ายที่เลือก
         if (currentLedgerView === 'project') {
             const selectedCampId = document.getElementById('camp-filter')?.value;
             selectedDept = document.getElementById('dept-filter')?.value || 'all';
-
-            if (selectedCampId) {
-                query = query.eq('camp_id', selectedCampId);
-            }
+            if (selectedCampId) query = query.eq('camp_id', selectedCampId);
         }
-
         const { data: trans, error } = await query;
         if (error) throw error;
 
-        // 🌟 กรองตามฝ่ายด้วย JavaScript (หลีกเลี่ยงบั๊ก Inner Join ของรายการที่ไม่ได้เบิกผ่านบิล)
         let filteredTrans = trans;
         if (currentLedgerView === 'project' && selectedDept !== 'all') {
             filteredTrans = trans.filter(t => t.clearances && t.clearances.department === selectedDept);
         }
 
         if (!filteredTrans || filteredTrans.length === 0) {
-            container.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400 text-xs">ยังไม่มีรายการบันทึกในสมุดบัญชีนี้ หรือไม่พบข้อมูลตามฝ่ายที่กรอง</td></tr>`;
+            container.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400 text-xs">ไม่มีรายการบันทึก</td></tr>`;
             return;
         }
 
@@ -159,270 +127,410 @@ async function fetchLedgerTransactions() {
             const isIncome = t.transaction_type === 'income'; 
             const dept = t.clearances?.department || '-';
             const purpose = t.clearances?.purpose || t.description || 'รายการเบิกจ่าย';
-            
-            let typeLabel = "";
+            let typeLabel = isIncome ? "เงินเข้า" : "เบิกจ่าย";
             if (t.description.includes('อนุมัติเบิกจ่าย')) typeLabel = "อนุมัติเบิก";
             else if (t.description.includes('รับเงินทอนคืน')) typeLabel = "รับคืนส่วนต่าง";
-            else if (t.description.includes('โอนชดเชย')) typeLabel = "โอนคืนส่วนต่าง";
-            else typeLabel = isIncome ? "เงินเข้า" : "เบิกจ่าย";
-
+            
             const targetId = t.clearance_id ? `'${t.clearance_id}'` : null;
-            const billIdHtml = t.clearance_id ? `<div class="text-[10px] font-normal text-gray-400 mt-1 font-mono tracking-tight">รหัสบิล: ${t.clearance_id}</div>` : '';
-
             return `
-            <tr class="hover:bg-gray-50 transition-colors border-b border-gray-50">
-                <td class="p-4 text-xs text-gray-500 align-top">${new Date(t.created_at).toLocaleDateString('th-TH')}</td>
-                <td class="p-4 align-top">
-                    <div class="text-xs font-bold text-gray-800 whitespace-normal min-w-[200px]">[${typeLabel}] ${purpose}</div>
-                    ${billIdHtml}
-                </td>
-                <td class="p-4 text-xs text-gray-600 font-bold align-top">${dept}</td>
-                <td class="p-4 text-right font-bold text-emerald-600 text-xs align-top">${isIncome ? '+' + parseFloat(t.amount).toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
-                <td class="p-4 text-right font-bold text-rose-600 text-xs align-top">${!isIncome ? '-' + parseFloat(t.amount).toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
-                <td class="p-4 text-center align-top">
-                    ${targetId ? `
-                    <button onclick="viewLedgerDetails(${targetId})" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg border border-blue-100 transition-colors">
-                        <i data-lucide="eye" class="w-4 h-4"></i>
-                    </button>` : `<span class="text-gray-300 text-[10px]">ไม่มีข้อมูล</span>`}
+            <tr class="hover:bg-gray-50 border-b border-gray-50">
+                <td class="p-4 text-xs text-gray-500">${new Date(t.created_at).toLocaleDateString('th-TH')}</td>
+                <td class="p-4"><div class="text-xs font-bold text-gray-800">[${typeLabel}] ${cleanText(purpose)}</div></td>
+                <td class="p-4 text-xs text-gray-600 font-bold">${dept}</td>
+                <td class="p-4 text-right font-bold text-emerald-600 text-xs">${isIncome ? '+' + parseFloat(t.amount).toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
+                <td class="p-4 text-right font-bold text-rose-600 text-xs">${!isIncome ? '-' + parseFloat(t.amount).toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
+                <td class="p-4 text-center">
+                    ${targetId ? `<button onclick="viewLedgerDetails(${targetId})" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg border border-blue-100"><i data-lucide="eye" class="w-4 h-4"></i></button>` : `-`}
                 </td>
             </tr>`;
         }).join('');
-        
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    } catch (err) {
-        console.error("Ledger Error:", err);
-        container.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-500 text-xs">Error: ${err.message}</td></tr>`;
-    }
+        lucide.createIcons();
+    } catch (err) { container.innerHTML = `<tr><td colspan="6" class="text-center text-red-500">${err.message}</td></tr>`; }
 }
-
-// ================= ระบบจัดการ Modal ดูหลักฐาน ================= //
 
 window.viewLedgerDetails = async function(clearanceId) {
     const modal = document.getElementById('details-modal');
     const content = document.getElementById('modal-content');
-    
     modal.classList.remove('hidden');
-    content.innerHTML = '<div class="text-center py-10 text-gray-400"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto"></i></div>';
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-
+    content.innerHTML = '<div class="text-center py-10 text-gray-400">กำลังโหลด...</div>';
+    
     try {
-        const { data: clearance, error: clErr } = await supabaseClient.from('clearances').select('*, profiles!user_id(full_name), camps(name)').eq('id', clearanceId).single();
+        const { data: clearance } = await supabaseClient.from('clearances').select('*, profiles!user_id(full_name), camps(name)').eq('id', clearanceId).single();
         const { data: items } = await supabaseClient.from('clearance_items').select('*').eq('clearance_id', clearanceId);
-
-        let evidenceHTML = '';
-        let receiptFiles = [];
-
-        if (clearance.receipt_image_url) {
-            try {
-                const parsed = JSON.parse(clearance.receipt_image_url);
-                if (Array.isArray(parsed)) receiptFiles = parsed;
-                else receiptFiles = [clearance.receipt_image_url];
-            } catch (e) {
-                receiptFiles = [clearance.receipt_image_url];
-            }
-        }
         
-        if (receiptFiles.length > 0) {
-            evidenceHTML += `<div class="mb-3"><p class="text-[10px] font-bold text-gray-500 mb-1 uppercase tracking-wider">ใบเสนอราคา / ใบเสร็จ (ผู้ขอเบิก)</p><div class="grid grid-cols-2 gap-2">`;
-            evidenceHTML += receiptFiles.map(url => url.toLowerCase().includes('.pdf') 
-                ? `<a href="${url}" target="_blank" class="p-2 bg-red-50 text-red-600 rounded text-[10px] font-bold border border-red-100 text-center flex flex-col items-center justify-center hover:bg-red-100"><i data-lucide="file-text" class="w-4 h-4 mb-1"></i> ดู PDF</a>` 
-                : `<a href="${url}" target="_blank" class="block rounded border border-gray-200 overflow-hidden hover:opacity-80 transition-opacity"><img src="${url}" class="w-full h-24 object-cover"></a>`
-            ).join('');
-            evidenceHTML += `</div></div>`;
-        }
-
-        if (clearance.advance_slip_url) evidenceHTML += `<div class="mb-3"><p class="text-[10px] font-bold text-blue-500 mb-1 uppercase tracking-wider">สลิปโอนเงินทดรองจ่าย (เหรัญญิก)</p><a href="${clearance.advance_slip_url}" target="_blank" class="block w-1/2 rounded border border-blue-200 overflow-hidden shadow-sm hover:opacity-80"><img src="${clearance.advance_slip_url}" class="w-full h-24 object-cover"></a></div>`;
-        if (clearance.refund_slip_url) evidenceHTML += `<div class="mb-3"><p class="text-[10px] font-bold text-green-500 mb-1 uppercase tracking-wider">สลิปคืนเงินทอนชุมนุม (ผู้ขอเบิก)</p><a href="${clearance.refund_slip_url}" target="_blank" class="block w-1/2 rounded border border-green-200 overflow-hidden shadow-sm hover:opacity-80"><img src="${clearance.refund_slip_url}" class="w-full h-24 object-cover"></a></div>`;
-        if (clearance.reimburse_slip_url) evidenceHTML += `<div class="mb-3"><p class="text-[10px] font-bold text-purple-500 mb-1 uppercase tracking-wider">สลิปโอนเงินชดเชย (เหรัญญิก)</p><a href="${clearance.reimburse_slip_url}" target="_blank" class="block w-1/2 rounded border border-purple-200 overflow-hidden shadow-sm hover:opacity-80"><img src="${clearance.reimburse_slip_url}" class="w-full h-24 object-cover"></a></div>`;
-
-        const itemsHTML = (items || []).map((item, i) => `
-            <div class="flex justify-between items-center py-2 border-b border-gray-100 border-dashed text-xs">
-                <span>${i + 1}. ${item.description} (x${item.quantity})</span>
-                <span class="font-bold">${parseFloat(item.amount).toLocaleString('th-TH')} ฿</span>
-            </div>
-        `).join('');
-
+        let itemsHTML = (items || []).map((item, i) => `<div class="flex justify-between text-xs py-1"><span>${i+1}. ${item.description}</span><span class="font-bold">${parseFloat(item.amount).toLocaleString('th-TH')} ฿</span></div>`).join('');
+        
         content.innerHTML = `
-            <div class="space-y-2 border-b border-gray-100 pb-4">
-                <p class="text-xs text-gray-500">โครงการ: <b class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">${clearance.camps.name}</b></p>
-                <p class="text-xs text-gray-500">หัวข้อ: <b class="text-gray-800">${clearance.purpose}</b></p>
-                <p class="text-xs text-gray-500">ผู้ขอเบิก: <b class="text-gray-800">${clearance.unregistered_name || clearance.profiles?.full_name || 'ไม่ระบุชื่อ'}</b></p>
+            <div class="space-y-2 pb-4 border-b">
+                <p class="text-xs text-gray-500">โครงการ: <b>${clearance.camps.name}</b></p>
+                <p class="text-xs text-gray-500">หัวข้อ: <b class="text-gray-800">${cleanText(clearance.purpose)}</b></p>
             </div>
             <div class="mt-4">
-                <p class="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">รายการที่เบิก</p>
+                <p class="text-xs font-bold text-gray-500 mb-2">รายการที่เบิก</p>
                 ${itemsHTML}
-                <div class="mt-4 text-right">
-                    <p class="text-xs text-gray-500">ยอดที่ทำการอนุมัติ</p>
-                    <p class="text-xl font-extrabold text-blue-600">${parseFloat(clearance.total_amount).toLocaleString('th-TH')} ฿</p>
-                </div>
-            </div>
-            <div class="pt-2 mt-4 border-t border-gray-100">
-                <p class="text-xs font-bold text-gray-500 mb-2 mt-2 uppercase tracking-wider">หลักฐานใบเสร็จ / สลิป</p>
-                ${evidenceHTML || '<p class="text-xs text-gray-400">ไม่พบหลักฐาน</p>'}
+                <div class="text-right mt-3"><p class="text-xl font-bold text-blue-600">${parseFloat(clearance.total_amount).toLocaleString('th-TH')} ฿</p></div>
             </div>
         `;
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    } catch (err) {
-        content.innerHTML = `<p class="text-red-500 text-center text-xs">ไม่พบข้อมูล: ${err.message}</p>`;
-    }
+    } catch(err) { content.innerHTML = `<p class="text-red-500 text-center">${err.message}</p>`; }
 };
+window.closeModal = function() { document.getElementById('details-modal').classList.add('hidden'); };
 
-window.closeModal = function() {
-    document.getElementById('details-modal').classList.add('hidden');
-};
+// ================= ระบบจัดเตรียมข้อมูล Report ================= //
 
-// ================= ระบบดาวน์โหลดรายงานบัญชีโครงการ (Exports) ================= //
+function cleanText(text) {
+    if (!text) return '';
+    let plainText = text.replace(/<[^>]*>?/gm, ''); 
+    return plainText.split('|')[0].trim(); 
+}
 
 function formatMoney(amount) {
     if (!amount && amount !== 0) return '';
     const num = parseFloat(amount);
     if (num === 0) return '-';
-    return Math.abs(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return num.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatNet(amount) {
+    const num = parseFloat(amount);
+    if (num === 0) return '-';
+    if (num < 0) return `(${Math.abs(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+    return num.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 async function getReportData() {
-    // 🌟 เปลี่ยนไปดึงค่าจากตัวกรอง แทนที่จะดึงจากค่ายปัจจุบันเท่านั้น
     const selectedCampId = document.getElementById('camp-filter').value;
-    if (!selectedCampId) throw new Error("กรุณาเลือกโครงการที่ต้องการดาวน์โหลดรายงาน");
-    
-    const selectedDept = document.getElementById('dept-filter').value;
-
+    if (!selectedCampId) throw new Error("กรุณาเลือกโครงการ");
     const camp = allCamps.find(c => c.id === selectedCampId);
-    if (!camp) throw new Error("ไม่พบข้อมูลโครงการที่เลือกในระบบ");
-
-    let query = supabaseClient
-        .from('clearances')
-        .select('purpose, department, request_type, actual_amount, total_amount')
-        .eq('camp_id', camp.id)
-        .eq('status', 'cleared');
-
-    // ถ้ามีการเลือกฝ่าย ให้กรองเฉพาะฝ่ายนั้น
-    if (selectedDept !== 'all') {
-        query = query.eq('department', selectedDept);
-    }
-
-    const { data: clearances, error } = await query;
-    if (error) throw error;
+    
+    const { data: clearances } = await supabaseClient.from('clearances').select('*').eq('camp_id', camp.id).eq('status', 'cleared');
+    const safeClearances = clearances || [];
 
     let totalIncome = 0;
     let totalExpense = 0;
-    let reportRows = []; 
-    
-    let deptText = selectedDept === 'all' ? 'ทุกฝ่าย' : `(ฝ่าย: ${selectedDept})`;
+    let departmentsData = {};
+    let generalIncomes = [];
 
-    let excelData = [
-        ['ชุมนุมค่ายอาสาพัฒนาชนบท มหาวิทยาลัยธรรมศาสตร์'],
-        ['สรุปรายการการเงิน'],
-        [`โครงการ${camp.name} ${deptText}`],
-        [`พิมพ์โดย: ${cachedProfileName} | วันที่พิมพ์: ${new Date().toLocaleDateString('th-TH')}`],
-        [''],
-        ['รายการ', 'รายรับ', 'รายจ่าย']
-    ]; 
+    safeClearances.forEach(c => {
+        const isInc = c.request_type === 'income' || c.request_type === 'other_income';
+        const amt = parseFloat(c.actual_amount || c.total_amount || 0);
+        const purpose = cleanText(c.purpose);
+        const dept = c.department || 'ทั่วไป';
 
-    const safeClearances = clearances || [];
-
-    const incomes = safeClearances.filter(c => c.request_type === 'income' || c.request_type === 'other_income');
-    if (incomes.length > 0) {
-        reportRows.push({ type: 'header', text: 'รายรับ' });
-        excelData.push(['รายรับ', '', '']);
-        incomes.forEach(inc => {
-            const amt = parseFloat(inc.actual_amount || inc.total_amount || 0);
+        if (isInc) {
             totalIncome += amt;
-            reportRows.push({ type: 'item', purpose: inc.purpose, inc: amt, exp: 0 });
-            excelData.push([`  ${inc.purpose}`, amt, '']);
-        });
-    }
-
-    const expenses = safeClearances.filter(c => c.request_type !== 'income' && c.request_type !== 'other_income');
-    
-    // จัดกลุ่มตามฝ่าย
-    const departments = [...new Set(expenses.map(e => e.department))];
-
-    departments.forEach(dept => {
-        const deptName = dept === 'ทั่วไป' ? 'รายจ่ายทั่วไป' : `ฝ่าย${dept}`;
-        reportRows.push({ type: 'header', text: deptName });
-        excelData.push([deptName, '', '']);
-        
-        let deptTotal = 0;
-        const deptExps = expenses.filter(e => e.department === dept);
-        deptExps.forEach(exp => {
-            const amt = parseFloat(exp.actual_amount || exp.total_amount || 0);
-            deptTotal += amt;
+            if (dept !== 'ส่วนกลาง' && dept !== 'ทั่วไป') {
+                if(!departmentsData[dept]) departmentsData[dept] = { items: [], inc: 0, exp: 0 };
+                departmentsData[dept].items.push({ name: purpose, inc: amt, exp: 0 });
+                departmentsData[dept].inc += amt;
+            } else {
+                generalIncomes.push({ name: purpose, amt: amt });
+            }
+        } else {
             totalExpense += amt;
-            reportRows.push({ type: 'item', purpose: exp.purpose, inc: 0, exp: amt });
-            excelData.push([`  - ${exp.purpose}`, '', amt]);
-        });
-        
-        reportRows.push({ type: 'sum', text: `รวมค่าใช้จ่าย${deptName}`, amount: deptTotal });
-        excelData.push([`รวมค่าใช้จ่าย${deptName}`, '', deptTotal]);
+            let targetDept = dept === 'ส่วนกลาง' ? 'รายจ่ายส่วนกลาง' : dept;
+            if(!departmentsData[targetDept]) departmentsData[targetDept] = { items: [], inc: 0, exp: 0 };
+            departmentsData[targetDept].items.push({ name: purpose, inc: 0, exp: amt });
+            departmentsData[targetDept].exp += amt;
+        }
     });
 
-    const net = totalIncome - totalExpense;
-    excelData.push(['']);
-    excelData.push(['รายรับรวม', totalIncome, '']);
-    excelData.push(['รายจ่ายรวม', '', totalExpense]);
-    excelData.push(['เงินค่ายคงเหลือสุทธิ', net, '']);
-
-    return { reportRows, excelData, campName: camp.name, deptText, totalIncome, totalExpense, net };
+    return { camp, generalIncomes, departmentsData, totalIncome, totalExpense, net: totalIncome - totalExpense };
 }
 
+// ================= ระบบสร้าง PDF (Preview และ Absolute DOM Injection) ================= //
+
 window.exportPDF = async function() {
-    Swal.fire({ title: 'กำลังจัดหน้ากระดาษ PDF...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
     try {
         const data = await getReportData();
         
-        // แทรกชื่อโครงการและชื่อฝ่ายที่กรอง (รองรับการขึ้นบรรทัดใหม่ด้วย <br>)
-        document.getElementById('pdf-camp-name').innerHTML = `โครงการ${data.campName} <br><span style="font-size: 14px; font-weight: normal; color: #555;">${data.deptText}</span>`;
-        document.getElementById('pdf-total-income').innerText = formatMoney(data.totalIncome);
-        document.getElementById('pdf-total-expense').innerText = formatMoney(data.totalExpense);
-        document.getElementById('pdf-net-balance').innerText = formatMoney(data.net);
-        
-        if(document.getElementById('pdf-printed-by')) document.getElementById('pdf-printed-by').innerText = cachedProfileName;
-
-        const printDate = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute:'2-digit' });
-        if(document.getElementById('pdf-print-date')) document.getElementById('pdf-print-date').innerText = printDate;
-        
-        const tbody = document.getElementById('pdf-table-body');
-        tbody.innerHTML = data.reportRows.map(row => {
-            if (row.type === 'header') {
-                return `<tr><td colspan="3" class="pt-5 pb-1 font-extrabold text-gray-900 text-[15px]">${row.text}</td></tr>`;
-            } else if (row.type === 'sum') {
-                return `<tr><td class="py-2 font-bold text-gray-800 text-sm">${row.text}</td><td class="py-2"></td><td class="py-2 text-right font-bold border-t border-gray-400">${formatMoney(row.amount)}</td></tr>`;
-            } else {
-                return `<tr><td class="py-1.5 pl-4 text-gray-700 text-sm">- ${row.purpose}</td><td class="py-1.5 text-right text-sm">${row.inc > 0 ? formatMoney(row.inc) : ''}</td><td class="py-1.5 text-right text-sm">${row.exp > 0 ? formatMoney(row.exp) : ''}</td></tr>`;
+        const { value: formValues, isConfirmed } = await Swal.fire({
+            title: 'ตั้งค่ารายการสรุป',
+            html: `
+                <div class="text-left mb-3 pb-3 border-b border-gray-100">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="swal-show-extended" class="w-5 h-5 accent-emerald-600 cursor-pointer" checked>
+                        <span class="font-bold text-gray-800 text-sm">แสดงข้อมูลสรุปบัญชีเชิงลึก</span>
+                    </label>
+                </div>
+                <div id="extended-inputs" class="text-left space-y-3 mt-4 text-sm transition-all duration-300">
+                    <div><label class="block font-bold text-gray-700 mb-1">รายรับค้างรับ (บาท)</label><input id="swal-pending-inc" type="number" class="w-full border border-gray-300 rounded-lg p-2" value="0"></div>
+                    <div><label class="block font-bold text-gray-700 mb-1">เงินค่ายยกยอดมา (บาท)</label><input id="swal-brought-fwd" type="number" class="w-full border border-gray-300 rounded-lg p-2" value="0"></div>
+                    <div><label class="block font-bold text-gray-700 mb-1">หนี้ค้างจ่าย (บาท)</label><input id="swal-pending-exp" type="number" class="w-full border border-gray-300 rounded-lg p-2" value="0"></div>
+                    <div><label class="block font-bold text-gray-700 mb-1 text-blue-600">เงินค่ายคงเหลือจริง (บาท)</label><input id="swal-actual-balance" type="number" class="w-full border border-blue-300 bg-blue-50 rounded-lg p-2" value="0"></div>
+                </div>
+            `,
+            didOpen: () => {
+                const checkbox = document.getElementById('swal-show-extended');
+                const extendedInputs = document.getElementById('extended-inputs');
+                checkbox.addEventListener('change', (e) => {
+                    extendedInputs.style.display = e.target.checked ? 'block' : 'none';
+                });
+            },
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'ดูตัวอย่าง',
+            cancelButtonText: 'ยกเลิก',
+            confirmButtonColor: '#059669',
+            preConfirm: () => {
+                return {
+                    showExtended: document.getElementById('swal-show-extended').checked,
+                    pendingInc: parseFloat(document.getElementById('swal-pending-inc').value) || 0,
+                    broughtFwd: parseFloat(document.getElementById('swal-brought-fwd').value) || 0,
+                    pendingExp: parseFloat(document.getElementById('swal-pending-exp').value) || 0,
+                    actualBalance: parseFloat(document.getElementById('swal-actual-balance').value) || 0
+                }
             }
-        }).join('');
+        });
 
-        const element = document.getElementById('pdf-content');
-        const container = document.getElementById('pdf-export-container');
+        if (!isConfirmed) return;
+
+        Swal.fire({ title: 'กำลังโหลดตัวอย่าง...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+        const dateStr = new Date().toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute:'2-digit' });
         
-        const opt = {
-            margin:       [10, 0, 10, 0], 
-            filename:     `สรุปการเงิน_ค่าย_${data.campName}.pdf`,
-            image:        { type: 'jpeg', quality: 1 },
-            html2canvas:  { scale: 2, useCORS: true }, 
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
+        const totalIncSum = data.totalIncome + formValues.pendingInc;
+        const totalExpSum = data.totalExpense;
+        const accountingBalance = formValues.broughtFwd + data.net - formValues.pendingExp;
+        
+        // 🌟 แยกเฉพาะไส้ในของเอกสาร (ไม่มีขอบ/การจัดกลาง) เพื่อเอาไปใช้ซ้ำ
+        let innerHtmlStr = `
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
+                .pdf-inner-wrapper { font-family: 'Sarabun', sans-serif; font-size: 14px; color: #000; text-align: left; }
+                .pdf-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+                .pdf-th { text-align: right; padding: 8px 0; border-top: 1px solid #000; border-bottom: 1px solid #000; }
+                .pdf-td { padding: 4px 0; }
+                .pdf-td-num { text-align: right; padding: 4px 0; }
+            </style>
+            
+            <div class="pdf-inner-wrapper">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <img src="../images/arsatu_ls.png" style="width: 140px; height: auto; display: block; margin: 0 auto 15px auto;" onerror="this.style.display='none'" alt="Logo">
+                    <div style="font-weight: bold; font-size: 18px; margin-bottom: 4px;">ชุมนุมค่ายอาสาพัฒนาชนบท มหาวิทยาลัยธรรมศาสตร์</div>
+                    <div style="font-weight: bold; font-size: 18px; margin-bottom: 4px;">สรุปรายการการเงิน</div>
+                    <div style="font-weight: bold; font-size: 18px;">โครงการ${data.camp.name}</div>
+                </div>
+                
+                <table class="pdf-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; padding: 8px 0; border-top: 1px solid #000; border-bottom: 1px solid #000;">รายการ</th>
+                            <th class="pdf-th" style="width: 15%;">รายรับ</th>
+                            <th class="pdf-th" style="width: 15%;">รายจ่าย</th>
+                            <th class="pdf-th" style="width: 18%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
 
-        container.style.visibility = 'visible';
-        await html2pdf().set(opt).from(element).save();
-        container.style.visibility = 'hidden';
+        if (data.generalIncomes.length > 0) {
+            data.generalIncomes.forEach(inc => {
+                innerHtmlStr += `<tr style="page-break-inside: avoid;"><td class="pdf-td" style="padding-left: 10px;">${inc.name}</td><td class="pdf-td-num">${formatMoney(inc.amt)}</td><td class="pdf-td-num"></td><td class="pdf-td-num"></td></tr>`;
+            });
+        }
 
+        for (const [dept, info] of Object.entries(data.departmentsData)) {
+            let deptLabel = dept.includes('ฝ่าย') || dept.includes('รายจ่าย') ? dept : `ฝ่าย${dept}`;
+            innerHtmlStr += `<tr style="page-break-inside: avoid;"><td colspan="4" style="padding: 10px 0 4px 0; font-weight: bold;">${deptLabel}</td></tr>`;
+            
+            info.items.forEach(item => {
+                innerHtmlStr += `<tr style="page-break-inside: avoid;"><td style="padding: 2px 0 2px 20px;">${item.name}</td><td class="pdf-td-num">${item.inc > 0 ? formatMoney(item.inc) : ''}</td><td class="pdf-td-num">${item.exp > 0 ? formatMoney(item.exp) : ''}</td><td class="pdf-td-num"></td></tr>`;
+            });
+            
+            let deptNet = info.inc - info.exp;
+            innerHtmlStr += `<tr style="font-weight: bold; page-break-inside: avoid;"><td style="padding: 6px 0 6px 20px;">รวมค่าใช้จ่าย${deptLabel}</td><td class="pdf-td-num">${formatMoney(info.inc)}</td><td class="pdf-td-num">${formatMoney(info.exp)}</td><td class="pdf-td-num">${formatNet(deptNet)}</td></tr>`;
+        }
+
+        innerHtmlStr += `
+                    <tr style="font-weight: bold; page-break-inside: avoid;">
+                        <td style="padding: 12px 0; border-top: 1px solid #000; border-bottom: 2px solid #000;">รวมสุทธิ</td>
+                        <td style="text-align: right; padding: 12px 0; border-top: 1px solid #000; border-bottom: 2px solid #000;">${formatMoney(data.totalIncome)}</td>
+                        <td style="text-align: right; padding: 12px 0; border-top: 1px solid #000; border-bottom: 2px solid #000;">${formatMoney(data.totalExpense)}</td>
+                        <td style="text-align: right; padding: 12px 0; border-top: 1px solid #000; border-bottom: 2px solid #000;">${formatNet(data.net)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+
+        if (formValues.showExtended) {
+            innerHtmlStr += `
+                <div style="margin-top: 30px; font-weight: bold; width: 65%; page-break-inside: avoid;">
+                    <div style="margin-bottom: 10px;">ณ วันที่ ${dateStr}</div>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td class="pdf-td">รายรับรับจริง</td><td class="pdf-td-num">${formatMoney(data.totalIncome)}</td><td style="padding-left: 10px; width: 40px;">บาท</td></tr>
+                        <tr><td class="pdf-td">รายรับค้างรับ</td><td class="pdf-td-num">${formValues.pendingInc > 0 ? formatMoney(formValues.pendingInc) : '-'}</td><td style="padding-left: 10px;">บาท</td></tr>
+                        <tr><td class="pdf-td">รายรับรวม</td><td class="pdf-td-num">${formatMoney(totalIncSum)}</td><td style="padding-left: 10px;">บาท</td></tr>
+                        
+                        <tr><td style="padding: 10px 0 4px 0;">รายจ่ายจ่ายจริง</td><td style="text-align: right; padding: 10px 0 4px 0;">${formatMoney(totalExpSum)}</td><td style="padding-left: 10px; padding-top: 6px;">บาท</td></tr>
+                        <tr><td class="pdf-td">รายจ่ายรวม</td><td class="pdf-td-num">${formatMoney(totalExpSum)}</td><td style="padding-left: 10px;">บาท</td></tr>
+                        
+                        <tr><td style="padding: 10px 0 4px 0;">เงินค่ายยกยอดมา</td><td style="text-align: right; padding: 10px 0 4px 0;">${formValues.broughtFwd > 0 ? formatMoney(formValues.broughtFwd) : '-'}</td><td style="padding-left: 10px; padding-top: 6px;">บาท</td></tr>
+                        <tr><td class="pdf-td">เงินค่ายถูกใช้ทบยอดค่ายนี้ ${data.net > 0 ? '(บวกรายรับสุทธิ)' : '(หักกลบรายจ่าย)'}</td><td class="pdf-td-num">${formatNet(data.net)}</td><td style="padding-left: 10px;">บาท</td></tr>
+                        <tr><td class="pdf-td">หนี้ค้างจ่าย</td><td class="pdf-td-num">${formValues.pendingExp > 0 ? formatNet(-formValues.pendingExp) : '-'}</td><td style="padding-left: 10px;">บาท</td></tr>
+                        
+                        <tr><td class="pdf-td">เงินค่ายคงเหลือ (ตามบัญชี)</td><td class="pdf-td-num">${formatMoney(accountingBalance)}</td><td style="padding-left: 10px;">บาท</td></tr>
+                        <tr><td style="padding: 10px 0 4px 0; color: #1d4ed8;">เงินค่ายคงเหลือจริง (สมุดบัญชี)</td><td style="text-align: right; padding: 10px 0 4px 0; color: #1d4ed8;">${formValues.actualBalance > 0 ? formatMoney(formValues.actualBalance) : '-'}</td><td style="padding-left: 10px; padding-top: 6px; color: #1d4ed8;">บาท</td></tr>
+                    </table>
+                </div>
+            `;
+        } else {
+            innerHtmlStr += `
+                <div style="margin-top: 30px; font-weight: bold; width: 55%; page-break-inside: avoid;">
+                    <div style="margin-bottom: 10px;">ณ วันที่ ${dateStr}</div>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td class="pdf-td">รายรับรวม</td><td class="pdf-td-num">${formatMoney(data.totalIncome)}</td><td style="padding-left: 10px; width: 40px;">บาท</td></tr>
+                        <tr><td class="pdf-td">รายจ่ายรวม</td><td class="pdf-td-num">${formatMoney(data.totalExpense)}</td><td style="padding-left: 10px;">บาท</td></tr>
+                        <tr><td style="padding: 10px 0 4px 0; color: #1d4ed8;">ยอดคงเหลือสุทธิ</td><td style="text-align: right; padding: 10px 0 4px 0; color: #1d4ed8;">${formatNet(data.net)}</td><td style="padding-left: 10px; padding-top: 6px; color: #1d4ed8;">บาท</td></tr>
+                    </table>
+                </div>
+            `;
+        }
+
+        innerHtmlStr += `
+            <div style="margin-top: 60px; font-size: 12px; color: #555; border-top: 1px dashed #ccc; padding-top: 15px; display: flex; justify-content: space-between; page-break-inside: avoid;">
+                <div>
+                    <b>พิมพ์เมื่อ:</b> ${dateStr} เวลา ${timeStr} น.<br>
+                    <b>ผู้พิมพ์รายงาน:</b> ${cachedProfileName}
+                </div>
+                <div style="text-align: right;">
+                    ออกรายงานโดยระบบ <b>ARSATU NEXT</b>
+                </div>
+            </div>
+        </div>
+        `;
+
+        // 🌟 เก็บไส้ในของ PDF ไว้ส่งให้เครื่องปริ้นท์
+        window.rawPdfHtmlContent = innerHtmlStr;
+
+        let previewModal = document.getElementById('pdf-preview-modal');
+        if (!previewModal) {
+            previewModal = document.createElement('div');
+            previewModal.id = 'pdf-preview-modal';
+            previewModal.className = 'fixed inset-0 z-[9999] bg-gray-900/80 flex flex-col justify-start items-center overflow-y-auto hidden backdrop-blur-sm';
+            document.body.appendChild(previewModal);
+        }
+
+        // หุ้มกล่องสำหรับโชว์ใน Preview และใช้เป็น Source สำหรับสร้าง PDF ในตัวเดียวกัน
+        previewModal.innerHTML = `
+            <div class="bg-gray-100 rounded-xl shadow-2xl w-full max-w-5xl flex flex-col my-4 sm:my-8 border border-gray-300">
+                <!-- ส่วนหัวเมนู -->
+                <div class="bg-white px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0 z-10 rounded-t-xl">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                        <i data-lucide="file-text" class="w-5 h-5 text-emerald-600"></i> ตัวอย่างเอกสารก่อนพิมพ์
+                    </h3>
+                    <div class="flex gap-2">
+                        <button onclick="closePdfPreview()" class="px-4 py-2 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">ยกเลิก</button>
+                        <button onclick="downloadPdfFromPreview('${data.camp.name}')" class="px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors flex items-center gap-2">
+                            <i data-lucide="download" class="w-4 h-4"></i> ดาวน์โหลด PDF
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- กล่องกระดาษจำลอง (ใช้เป็นทั้ง Preview และเป้าหมายในการแคป PDF) -->
+                <div class="p-4 sm:p-8 overflow-x-auto flex justify-center items-start min-h-[50vh] bg-gray-200 rounded-b-xl">
+                    <div id="pdf-print-source" class="shadow-lg border border-gray-300 bg-white" style="width: 210mm; min-height: 297mm; padding: 15mm 20mm; box-sizing: border-box;">
+                        ${innerHtmlStr}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        previewModal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; 
+        if (typeof lucide !== 'undefined') lucide.createIcons();
         Swal.close();
+
     } catch (err) {
-        document.getElementById('pdf-export-container').style.visibility = 'hidden';
         Swal.fire('ข้อผิดพลาด', err.message, 'error');
     }
 };
+
+window.closePdfPreview = function() {
+    const modal = document.getElementById('pdf-preview-modal');
+    if (modal) modal.classList.add('hidden');
+    document.body.style.overflow = 'auto'; // คืนค่าการเลื่อนหน้าเว็บ
+};
+
+// ================= ฟังก์ชันดาวน์โหลด PDF (Bypass หน้าจอ แก้ขอบขาด 100%) ================= //
+
+window.downloadPdfFromPreview = async function(campName) {
+    const sourceElement = document.getElementById('pdf-print-source');
+    if (!sourceElement) {
+        Swal.fire('ข้อผิดพลาด', 'ไม่พบเนื้อหาเอกสารสำหรับสร้าง PDF', 'error');
+        return;
+    }
+
+    Swal.fire({ title: 'กำลังสร้างไฟล์ PDF...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    // 🌟 เอาเงาและกรอบออกชั่วคราวตอนปริ้นท์
+    sourceElement.classList.remove('shadow-lg', 'border', 'border-gray-300');
+    
+    // 🌟 แก้ปัญหาหน้าเปล่าแผ่นที่ 2: เอา min-height ออกชั่วคราว เพื่อไม่ให้เศษทศนิยมดันล้นหน้า
+    const originalMinHeight = sourceElement.style.minHeight;
+    sourceElement.style.minHeight = 'auto';
+
+    try {
+        const opt = {
+            margin:       0,
+            filename:     `สรุปการเงิน_${campName}.pdf`,
+            image:        { type: 'jpeg', quality: 1 },
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true
+            }, 
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        await html2pdf().set(opt).from(sourceElement).save();
+        
+        Swal.close();
+    } catch (err) {
+        Swal.fire('ข้อผิดพลาดในการโหลด PDF', err.message, 'error');
+    } finally {
+        // 🌟 คืนค่า CSS กลับมาให้หน้า Preview กลับมามีกรอบและเป็นทรง A4 เหมือนเดิม
+        sourceElement.classList.add('shadow-lg', 'border', 'border-gray-300');
+        sourceElement.style.minHeight = originalMinHeight;
+    }
+};
+
+// ================= ระบบดาวน์โหลดรายงาน Excel ================= //
 
 window.exportExcel = async function() {
     Swal.fire({ title: 'กำลังสร้างไฟล์ Excel...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
     try {
         const data = await getReportData();
-        const ws = XLSX.utils.aoa_to_sheet(data.excelData);
+        const dateStr = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+        const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute:'2-digit' });
+        
+        let excelData = [
+            ['ชุมนุมค่ายอาสาพัฒนาชนบท มหาวิทยาลัยธรรมศาสตร์'],
+            ['สรุปรายการการเงิน'],
+            [`โครงการ: ${data.camp.name}`],
+            [`พิมพ์เมื่อ: ${dateStr} เวลา ${timeStr} น. | ผู้พิมพ์: ${cachedProfileName}`],
+            [''],
+            ['รายการ', 'รายรับ', 'รายจ่าย']
+        ];
+
+        if (data.generalIncomes.length > 0) {
+            data.generalIncomes.forEach(inc => { excelData.push([inc.name, inc.amt, '']); });
+        }
+
+        for (const [dept, info] of Object.entries(data.departmentsData)) {
+            let deptLabel = dept.includes('ฝ่าย') || dept.includes('รายจ่าย') ? dept : `ฝ่าย${dept}`;
+            excelData.push([deptLabel, '', '']);
+            info.items.forEach(item => { excelData.push([`  ${item.name}`, item.inc > 0 ? item.inc : '', item.exp > 0 ? item.exp : '']); });
+            excelData.push([`รวมค่าใช้จ่าย${deptLabel}`, info.inc, info.exp]);
+        }
+
+        excelData.push(['']);
+        excelData.push(['รวมสุทธิ', data.totalIncome, data.totalExpense]);
+        excelData.push(['ยอดคงเหลือสุทธิ', data.net, '']);
+
+        const ws = XLSX.utils.aoa_to_sheet(excelData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "สรุปการเงิน");
-        XLSX.writeFile(wb, `สรุปการเงิน_ค่าย_${data.campName}.xlsx`);
+        XLSX.writeFile(wb, `สรุปการเงิน_${data.camp.name}.xlsx`);
         Swal.close();
     } catch (err) {
         Swal.fire('ข้อผิดพลาด', err.message, 'error');
