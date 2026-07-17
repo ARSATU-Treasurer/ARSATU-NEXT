@@ -264,8 +264,16 @@ async function openApproveModal(clearanceId, amount, campId, mode, actualAmount 
     try {
         const { data: banks } = await supabaseClient.from('bank_accounts').select('*');
         const { data: funds } = await supabaseClient.from('funds').select('*');
-        bankSelect.innerHTML = banks.map(b => `<option value="${b.id}" data-balance="${b.balance}">${b.name} (คงเหลือ: ${parseFloat(b.balance).toLocaleString()} ฿)</option>`).join('');
-        fundSelect.innerHTML = funds.map(f => `<option value="${f.id}" data-balance="${f.balance}">${f.name} (คงเหลือ: ${parseFloat(f.balance).toLocaleString()} ฿)</option>`).join('');
+       bankSelect.innerHTML = banks.map(b => {
+    // ดักจับชื่อฟิลด์เผื่อในฐานข้อมูลใช้ชื่อคอลัมน์ต่างกัน
+    const displayBankName = b.name || b.bank_name || b.account_name || 'ไม่ระบุชื่อบัญชี';
+    return `<option value="${b.id}" data-name="${displayBankName}" data-balance="${b.balance}">${displayBankName} (คงเหลือ: ${parseFloat(b.balance).toLocaleString()} ฿)</option>`;
+}).join('');
+
+fundSelect.innerHTML = funds.map(f => {
+    const displayFundName = f.name || f.fund_name || 'ไม่ระบุกองทุน';
+    return `<option value="${f.id}" data-name="${displayFundName}" data-balance="${f.balance}">${displayFundName} (คงเหลือ: ${parseFloat(f.balance).toLocaleString()} ฿)</option>`;
+}).join('');
     } catch (e) { console.error(e); }
 }
 
@@ -291,8 +299,12 @@ async function confirmApproval() {
     const fundSelect = document.getElementById('approve-fund-select');
     if (!bankSelect.value || !fundSelect.value) return Swal.fire('แจ้งเตือน', 'กรุณาเลือกบัญชีและกองทุน', 'warning');
     
-    const bankName = bankSelect.options[bankSelect.selectedIndex].text.split('(')[0].trim();
-    const fundName = fundSelect.options[fundSelect.selectedIndex].text.split('(')[0].trim();
+    const selectedBankOption = bankSelect.options[bankSelect.selectedIndex];
+const selectedFundOption = fundSelect.options[fundSelect.selectedIndex];
+
+// ดึงชื่อบัญชีและกองทุนจาก Attribute โดยตรง ป้องกันปัญหาการตัดคำด้วยวงเล็บผิดพลาด
+const bankName = selectedBankOption.getAttribute('data-name');
+const fundName = selectedFundOption.getAttribute('data-name');
     
     const isIncomeMode = mode === 'income' || mode === 'other_income';
     const diff = amount - actualAmount;
