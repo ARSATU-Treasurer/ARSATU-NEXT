@@ -299,18 +299,17 @@ async function confirmApproval() {
     const fundSelect = document.getElementById('approve-fund-select');
     if (!bankSelect.value || !fundSelect.value) return Swal.fire('แจ้งเตือน', 'กรุณาเลือกบัญชีและกองทุน', 'warning');
     
-    const selectedBankOption = bankSelect.options[bankSelect.selectedIndex];
-const selectedFundOption = fundSelect.options[fundSelect.selectedIndex];
-
-// ดึงชื่อบัญชีและกองทุนจาก Attribute โดยตรง ป้องกันปัญหาการตัดคำด้วยวงเล็บผิดพลาด
-const bankName = selectedBankOption.getAttribute('data-name');
-const fundName = selectedFundOption.getAttribute('data-name');
+    // ดึงชื่อธนาคารและกองทุน (แก้ไขการตัดคำในที่นี้)
+    const bankName = bankSelect.options[bankSelect.selectedIndex].text.split('(')[0].trim();
+    const fundName = fundSelect.options[fundSelect.selectedIndex].text.split('(')[0].trim();
     
     const isIncomeMode = mode === 'income' || mode === 'other_income';
     const diff = amount - actualAmount;
     
+    // 🌟 ส่วนนี้คือที่ที่เคยซ้ำ ให้ดึงค่าจากตัวแปรเดิมที่ประกาศไว้แล้วมาใช้เลยครับ
     const selectedBankOption = bankSelect.options[bankSelect.selectedIndex];
     const selectedFundOption = fundSelect.options[fundSelect.selectedIndex];
+    
     const bankBalance = parseFloat(selectedBankOption.getAttribute('data-balance') || 0);
     const fundBalance = parseFloat(selectedFundOption.getAttribute('data-balance') || 0);
     
