@@ -3,6 +3,7 @@
 let currentLedgerView = 'main';
 let cachedProfileName = 'ไม่ระบุชื่อ';
 let allCamps = [];
+let isAdmin = false; // 🌟 เพิ่มตัวแปรเช็คสิทธิ์แอดมิน
 
 document.addEventListener('DOMContentLoaded', async () => {
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -11,6 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (profile) {
             cachedProfileName = profile.full_name || 'ไม่ระบุชื่อ';
             if (profile.role === 'admin') {
+                isAdmin = true; // 🌟 เซ็ตค่าสิทธิ์แอดมินเป็น true
                 const adminLink = document.getElementById('admin-action-link');
                 if (adminLink) adminLink.classList.remove('hidden');
             }
@@ -31,7 +33,6 @@ async function loadCampsForLedger() {
         if (error) throw error;
         allCamps = camps || [];
         if (allCamps.length > 0) {
-            // 🌟 เพิ่มตัวเลือก "ดูรวมทั้งหมด (Overview)" เข้าไปเป็นตัวเลือกแรก
             let optionsHTML = '<option value="all" class="font-bold text-blue-600">🌎 ดูรวมทั้งหมด (Overview)</option>';
             
             optionsHTML += allCamps.map(c => 
@@ -115,7 +116,6 @@ async function fetchLedgerTransactions() {
             const selectedCampId = document.getElementById('camp-filter')?.value;
             selectedDept = document.getElementById('dept-filter')?.value || 'all';
             
-            // 🌟 ดักเงื่อนไข: ถ้าไม่ได้เลือก "ดูรวมทั้งหมด (all)" ให้ดึงเฉพาะโครงการนั้น
             if (selectedCampId && selectedCampId !== 'all') {
                 query = query.eq('camp_id', selectedCampId);
             }
@@ -143,6 +143,10 @@ async function fetchLedgerTransactions() {
             else if (t.description.includes('รับเงินทอนคืน')) typeLabel = "รับคืนส่วนต่าง";
             
             const targetId = t.clearance_id ? `'${t.clearance_id}'` : null;
+            
+            // 🌟 สร้างปุ่ม Edit เฉพาะถ้าผู้ใช้เป็น Admin
+            const editBtn = isAdmin ? `<button onclick="editTransactionCamp('${t.id}', ${targetId}, '${t.camp_id}')" class="text-orange-500 hover:bg-orange-50 p-1.5 rounded-lg border border-orange-100" title="แก้ไขโครงการ"><i data-lucide="edit-3" class="w-4 h-4"></i></button>` : '';
+
             return `
             <tr class="hover:bg-gray-50 border-b border-gray-50">
                 <td class="p-4 text-xs text-gray-500">${new Date(t.created_at).toLocaleDateString('th-TH')}</td>
@@ -151,13 +155,63 @@ async function fetchLedgerTransactions() {
                 <td class="p-4 text-right font-bold text-emerald-600 text-xs">${isIncome ? '+' + parseFloat(t.amount).toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
                 <td class="p-4 text-right font-bold text-rose-600 text-xs">${!isIncome ? '-' + parseFloat(t.amount).toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
                 <td class="p-4 text-center">
-                    ${targetId ? `<button onclick="viewLedgerDetails(${targetId})" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg border border-blue-100"><i data-lucide="eye" class="w-4 h-4"></i></button>` : `-`}
+                    <div class="flex justify-center items-center gap-1">
+                        ${targetId ? `<button onclick="viewLedgerDetails(${targetId})" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg border border-blue-100" title="ดูรายละเอียด"><i data-lucide="eye" class="w-4 h-4"></i></button>` : `<span class="w-8"></span>`}
+                        ${editBtn}
+                    </div>
                 </td>
             </tr>`;
         }).join('');
         lucide.createIcons();
     } catch (err) { container.innerHTML = `<tr><td colspan="6" class="text-center text-red-500">${err.message}</td></tr>`; }
 }
+
+// 🌟 ฟังก์ชันใหม่: สำหรับกดแก้ไขเปลี่ยนโครงการ
+window.editTransactionCamp = async function(transactionId, clearanceId, currentCampId) {
+    let optionsHTML = '<option value="ffffffff-ffff-ffff-ffff-ffffffffffff" ' + ('ffffffff-ffff-ffff-ffff-ffffffffffff' === currentCampId ? 'selected' : '') + '>ส่วนกลาง (ไม่ผูกโครงการ)</option>';
+    allCamps.forEach(c => {
+        optionsHTML += `<option value="${c.id}" ${c.id === currentCampId ? 'selected' : ''}>${c.name}</option>`;
+    });
+
+    const { value: newCampId, isConfirmed } = await Swal.fire({
+        title: 'แก้ไขโครงการที่จัดสรร',
+        html: `
+            <div class="text-left mt-4">
+                <label class="block text-sm font-bold text-gray-700 mb-2">เลือกโครงการใหม่:</label>
+                <select id="swal-edit-camp" class="w-full border border-gray-300 rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none">
+                    ${optionsHTML}
+                </select>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'บันทึก',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#3b82f6',
+        preConfirm: () => {
+            return document.getElementById('swal-edit-camp').value;
+        }
+    });
+
+    if (isConfirmed && newCampId && newCampId !== currentCampId) {
+        Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+        try {
+            // อัปเดตในตาราง transactions
+            const { error: txError } = await supabaseClient.from('transactions').update({ camp_id: newCampId }).eq('id', transactionId);
+            if (txError) throw txError;
+
+            // ถ้ามีรายการผูกกับใบเบิก ให้อัปเดตใน clearances ด้วย
+            if (clearanceId) {
+                const { error: clError } = await supabaseClient.from('clearances').update({ camp_id: newCampId }).eq('id', clearanceId);
+                if (clError) throw clError;
+            }
+
+            Swal.fire('สำเร็จ', 'ย้ายรายการไปยังโครงการใหม่เรียบร้อยแล้ว', 'success');
+            fetchLedgerTransactions();
+        } catch (err) {
+            Swal.fire('ข้อผิดพลาด', err.message, 'error');
+        }
+    }
+};
 
 window.viewLedgerDetails = async function(clearanceId) {
     const modal = document.getElementById('details-modal');
@@ -173,7 +227,7 @@ window.viewLedgerDetails = async function(clearanceId) {
         
         content.innerHTML = `
             <div class="space-y-2 pb-4 border-b">
-                <p class="text-xs text-gray-500">โครงการ: <b>${clearance.camps?.name || 'ทั่วไป'}</b></p>
+                <p class="text-xs text-gray-500">โครงการ: <b>${clearance.camps?.name || 'ส่วนกลาง'}</b></p>
                 <p class="text-xs text-gray-500">หัวข้อ: <b class="text-gray-800">${cleanText(clearance.purpose)}</b></p>
             </div>
             <div class="mt-4">
@@ -215,7 +269,6 @@ async function getReportData() {
     let campNameForReport = 'รวมทั้งหมด (ภาพรวม)';
     let query = supabaseClient.from('clearances').select('*, camps(name)').eq('status', 'cleared');
     
-    // 🌟 ถ้าไม่ได้เลือก "all" ค่อยฟิลเตอร์ตาม ID
     if (selectedCampId !== 'all') {
         const camp = allCamps.find(c => c.id === selectedCampId);
         if (camp) campNameForReport = camp.name;
@@ -234,7 +287,6 @@ async function getReportData() {
         const isInc = c.request_type === 'income' || c.request_type === 'other_income';
         const amt = parseFloat(c.actual_amount || c.total_amount || 0);
         
-        // ถ้ารวมหลายโครงการ ให้เอาชื่อโครงการแปะนำหน้า purpose ด้วย
         const campPrefix = (selectedCampId === 'all' && c.camps) ? `[${c.camps.name}] ` : '';
         const purpose = campPrefix + cleanText(c.purpose);
         
@@ -261,7 +313,7 @@ async function getReportData() {
     return { camp: { name: campNameForReport }, generalIncomes, departmentsData, totalIncome, totalExpense, net: totalIncome - totalExpense };
 }
 
-// ================= ระบบสร้าง PDF (Preview และ Absolute DOM Injection) ================= //
+// ================= ระบบสร้าง PDF ================= //
 
 window.exportPDF = async function() {
     try {
@@ -471,8 +523,6 @@ window.closePdfPreview = function() {
     document.body.style.overflow = 'auto';
 };
 
-// ================= ฟังก์ชันดาวน์โหลด PDF (Bypass หน้าจอ แก้ขอบขาด 100%) ================= //
-
 window.downloadPdfFromPreview = async function(campName) {
     const sourceElement = document.getElementById('pdf-print-source');
     if (!sourceElement) {
@@ -507,8 +557,6 @@ window.downloadPdfFromPreview = async function(campName) {
         sourceElement.style.minHeight = originalMinHeight;
     }
 };
-
-// ================= ระบบดาวน์โหลดรายงาน Excel ================= //
 
 window.exportExcel = async function() {
     Swal.fire({ title: 'กำลังสร้างไฟล์ Excel...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
