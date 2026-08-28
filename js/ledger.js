@@ -328,7 +328,6 @@ async function getReportData() {
     let totalIncome = 0;
     let totalExpense = 0;
     let departmentsData = {};
-    let generalIncomes = [];
 
     safeClearances.forEach(c => {
         const isInc = c.request_type === 'income' || c.request_type === 'other_income';
@@ -337,29 +336,29 @@ async function getReportData() {
         const campPrefix = (selectedCampId === 'all' && c.camps) ? `[${c.camps.name}] ` : '';
         const purpose = campPrefix + cleanText(c.purpose);
         
-        const dept = c.department || 'ทั่วไป';
+        // 🌟 รวบรายการ "ไม่มีฝ่าย" และ "ทั่วไป" ให้กลายเป็น "ส่วนกลาง" ทั้งหมด
+        let dept = c.department || 'ส่วนกลาง';
+        if (dept === 'ทั่วไป' || dept === '-') dept = 'ส่วนกลาง';
+
+        // คำนวณยอดรวมสุทธิ
+        if (isInc) totalIncome += amt;
+        else totalExpense += amt;
+
+        // จัดกลุ่มเข้าตามฝ่าย
+        if (!departmentsData[dept]) {
+            departmentsData[dept] = { items: [], inc: 0, exp: 0 };
+        }
 
         if (isInc) {
-            totalIncome += amt;
-            // 🌟 ให้เอา 'ส่วนกลาง' มารวมในตารางหมวดหมู่ด้วย ไม่ต้องแยกไปเป็นรายรับทั่วไป
-            if (dept !== 'ทั่วไป') {
-                if(!departmentsData[dept]) departmentsData[dept] = { items: [], inc: 0, exp: 0 };
-                departmentsData[dept].items.push({ name: purpose, inc: amt, exp: 0 });
-                departmentsData[dept].inc += amt;
-            } else {
-                generalIncomes.push({ name: purpose, amt: amt });
-            }
+            departmentsData[dept].items.push({ name: purpose, inc: amt, exp: 0 });
+            departmentsData[dept].inc += amt;
         } else {
-            totalExpense += amt;
-            // 🌟 ใช้ชื่อฝ่ายตรงๆ เลย ถ้าเป็น "ส่วนกลาง" ก็ให้บันทึกในชื่อ "ส่วนกลาง" ไปเลย
-            let targetDept = dept; 
-            if(!departmentsData[targetDept]) departmentsData[targetDept] = { items: [], inc: 0, exp: 0 };
-            departmentsData[targetDept].items.push({ name: purpose, inc: 0, exp: amt });
-            departmentsData[targetDept].exp += amt;
+            departmentsData[dept].items.push({ name: purpose, inc: 0, exp: amt });
+            departmentsData[dept].exp += amt;
         }
     });
 
-    return { camp: { name: campNameForReport }, generalIncomes, departmentsData, totalIncome, totalExpense, net: totalIncome - totalExpense };
+    return { camp: { name: campNameForReport }, departmentsData, totalIncome, totalExpense, net: totalIncome - totalExpense };
 }
 
 // ================= ระบบสร้าง PDF ================= //
@@ -448,15 +447,18 @@ window.exportPDF = async function() {
                     <tbody>
         `;
 
-        if (data.generalIncomes.length > 0) {
-            data.generalIncomes.forEach(inc => {
-                innerHtmlStr += `<tr style="page-break-inside: avoid;"><td class="pdf-td" style="padding-left: 10px;">${inc.name}</td><td class="pdf-td-num">${formatMoney(inc.amt)}</td><td class="pdf-td-num"></td><td class="pdf-td-num"></td></tr>`;
-            });
-        }
+        // 🌟 ดึงรายชื่อฝ่ายออกมา แล้วเรียงให้ "ส่วนกลาง" อยู่ด้านบนสุดเสมอ
+        const sortedDepts = Object.keys(data.departmentsData).sort((a, b) => {
+            if (a === 'ส่วนกลาง') return -1;
+            if (b === 'ส่วนกลาง') return 1;
+            return a.localeCompare(b, 'th'); // ฝ่ายอื่นเรียงตามตัวอักษร
+        });
 
-        for (const [dept, info] of Object.entries(data.departmentsData)) {
-            // 🌟 เช็คชื่อหัวข้อ (ถ้าเป็น ส่วนกลาง/ทั่วไป/PR ไม่ต้องใส่คำว่า ฝ่าย)
-            let deptLabel = (dept === 'ส่วนกลาง' || dept === 'ทั่วไป' || dept.includes('ฝ่าย') || dept.includes('PR')) ? dept : `ฝ่าย${dept}`;
+        // วนลูปสร้างตารางตามฝ่ายที่เรียงแล้ว
+        for (const dept of sortedDepts) {
+            const info = data.departmentsData[dept];
+            let deptLabel = (dept === 'ส่วนกลาง' || dept.includes('ฝ่าย') || dept.includes('PR')) ? dept : `ฝ่าย${dept}`;
+            
             innerHtmlStr += `<tr style="page-break-inside: avoid;"><td colspan="4" style="padding: 10px 0 4px 0; font-weight: bold;">${deptLabel}</td></tr>`;
             
             info.items.forEach(item => {
@@ -464,7 +466,6 @@ window.exportPDF = async function() {
             });
             
             let deptNet = info.inc - info.exp;
-            // 🌟 ใช้คำว่า 'รวม + ชื่อหัวข้อ'
             innerHtmlStr += `<tr style="font-weight: bold; page-break-inside: avoid;"><td style="padding: 6px 0 6px 20px;">รวม${deptLabel}</td><td class="pdf-td-num">${formatMoney(info.inc)}</td><td class="pdf-td-num">${formatMoney(info.exp)}</td><td class="pdf-td-num">${formatNet(deptNet)}</td></tr>`;
         }
 
@@ -627,15 +628,22 @@ window.exportExcel = async function() {
             ['รายการ', 'รายรับ', 'รายจ่าย']
         ];
 
-        if (data.generalIncomes.length > 0) {
-            data.generalIncomes.forEach(inc => { excelData.push([inc.name, inc.amt, '']); });
-        }
+        // 🌟 ดึงรายชื่อฝ่ายออกมา แล้วเรียงให้ "ส่วนกลาง" อยู่ด้านบนสุดเสมอ
+        const sortedDepts = Object.keys(data.departmentsData).sort((a, b) => {
+            if (a === 'ส่วนกลาง') return -1;
+            if (b === 'ส่วนกลาง') return 1;
+            return a.localeCompare(b, 'th');
+        });
 
-        for (const [dept, info] of Object.entries(data.departmentsData)) {
-            // 🌟 เช็คชื่อหัวข้อให้ตรงกับ PDF
-            let deptLabel = (dept === 'ส่วนกลาง' || dept === 'ทั่วไป' || dept.includes('ฝ่าย') || dept.includes('PR')) ? dept : `ฝ่าย${dept}`;
+        // วนลูปสร้างแถวข้อมูล
+        for (const dept of sortedDepts) {
+            const info = data.departmentsData[dept];
+            let deptLabel = (dept === 'ส่วนกลาง' || dept.includes('ฝ่าย') || dept.includes('PR')) ? dept : `ฝ่าย${dept}`;
+            
             excelData.push([deptLabel, '', '']);
-            info.items.forEach(item => { excelData.push([`  ${item.name}`, item.inc > 0 ? item.inc : '', item.exp > 0 ? item.exp : '']); });
+            info.items.forEach(item => { 
+                excelData.push([`  ${item.name}`, item.inc > 0 ? item.inc : '', item.exp > 0 ? item.exp : '']); 
+            });
             
             excelData.push([`รวม${deptLabel}`, info.inc, info.exp]);
         }
