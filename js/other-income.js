@@ -1,7 +1,7 @@
 // js/other-income.js
 let currentUser = null;
 let currentCampId = null;
-let editId = new URLSearchParams(window.location.search).get('id'); // ดักจับ ID หากกดปุ่มแก้ไขมา
+let editId = new URLSearchParams(window.location.search).get('id');
 
 document.addEventListener('DOMContentLoaded', async () => {
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -11,16 +11,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { data: camp } = await supabaseClient.from('camps').select('id').eq('is_active', true).single();
     if (camp) {
         currentCampId = camp.id;
-        fetchMyOtherHistory();
-        
-        // ถ้าเป็นการกดแก้ไขเข้ามา ให้โหลดข้อมูลเดิม
-        if (editId) loadEditData(editId);
     }
+    
+    // โหลดรายชื่อโครงการทั้งหมดมาใส่ Dropdown
+    await loadCamps();
+    fetchMyOtherHistory();
+    
+    if (editId) loadEditData(editId);
     
     document.getElementById('form-other').addEventListener('submit', handleOtherSubmit);
 });
 
-// ฟังก์ชันโหลดข้อมูลเดิมมาใส่ในฟอร์มเมื่อถูกตีกลับ หรือเป็นแบบร่าง
+// ฟังก์ชันดึงข้อมูลโครงการมาสร้างตัวเลือก
+async function loadCamps() {
+    const selectEl = document.getElementById('other-context');
+    try {
+        const { data: camps } = await supabaseClient.from('camps').select('id, name, is_active').order('created_at', { ascending: false });
+        if (camps) {
+            selectEl.innerHTML = '<option value="ffffffff-ffff-ffff-ffff-ffffffffffff">ส่วนกลาง (ไม่ผูกโครงการ)</option>';
+            camps.forEach(camp => {
+                const option = document.createElement('option');
+                option.value = camp.id;
+                option.innerText = camp.name + (camp.is_active ? ' (โครงการปัจจุบัน)' : '');
+                
+                // ให้เลือกโครงการปัจจุบันเป็นค่าเริ่มต้น (ถ้าไม่ได้อยู่ในโหมด Edit)
+                if (camp.is_active && !editId) option.selected = true;
+                
+                selectEl.appendChild(option);
+            });
+        }
+    } catch (err) {
+        console.error("Load camps error:", err);
+    }
+}
+
 async function loadEditData(id) {
     try {
         const { data: item, error } = await supabaseClient.from('clearances').select('*').eq('id', id).single();
@@ -28,9 +52,10 @@ async function loadEditData(id) {
         
         if (item) {
             document.getElementById('other-type').value = item.request_type;
-            document.getElementById('other-context').value = item.camp_id === 'ffffffff-ffff-ffff-ffff-ffffffffffff' ? 'ffffffff-ffff-ffff-ffff-ffffffffffff' : 'current';
             
-            // ตัดคำนำหน้า (เช่น "รายรับอื่นๆ: ") ออกเพื่อแสดงแค่รายละเอียด
+            // ตั้งค่า Dropdown ให้ตรงกับ camp_id ของข้อมูลเก่า
+            document.getElementById('other-context').value = item.camp_id;
+            
             let details = item.purpose;
             if (details.includes(': ')) {
                 details = details.substring(details.indexOf(': ') + 2);
@@ -40,12 +65,10 @@ async function loadEditData(id) {
             document.getElementById('other-amount').value = item.total_amount;
             document.getElementById('other-remark').value = item.remark || '';
             
-            // กรณีแก้ไข ไม่บังคับให้อัปโหลดสลิปใหม่ (ใช้ของเดิมได้)
             document.getElementById('other-slip').removeAttribute('required');
             
-            // เปลี่ยนข้อความปุ่ม
             const btn = document.querySelector('#form-other button[type="submit"]');
-            btn.innerHTML = '<i data-lucide="edit-3" class="w-5 h-5 inline mb-0.5"></i> บันทึกการแก้ไขและส่งใหม่';
+            btn.innerHTML = '<i data-lucide="edit-3" class="w-5 h-5 inline mb-0.5"></i> บันทึกการแก้ไข';
             lucide.createIcons();
         }
     } catch (err) {
@@ -59,10 +82,15 @@ async function handleOtherSubmit(e) {
     const amount = parseFloat(document.getElementById('other-amount').value);
     const details = document.getElementById('other-details').value;
     const date = document.getElementById('other-date').value;
+    
+    // ดึงค่า camp_id ตรงๆ จาก Dropdown ที่ผู้ใช้เลือก
+    const finalCampId = document.getElementById('other-context').value;
 
     const typeLabel = type === 'other_income' ? 'รายรับอื่นๆ (Income)' : 'รายจ่ายอื่นๆ (Expense)';
     const typeColor = type === 'other_income' ? 'text-teal-600' : 'text-rose-600';
     const bgAmount = type === 'other_income' ? 'bg-teal-50 border-teal-200' : 'bg-rose-50 border-rose-200';
+
+    // ... (ส่วนโค้ด Swal.fire และการอัปโหลดไฟล์/บันทึกฐานข้อมูลด้านล่างให้ใช้ของเดิมได้เลยครับ โดยเปลี่ยน payload.camp_id เป็น finalCampId ซึ่งผมแนบมาให้แล้วด้านล่าง) ...
 
     // Pop-up ยืนยัน
     const confirmResult = await Swal.fire({

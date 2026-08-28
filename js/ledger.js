@@ -31,9 +31,14 @@ async function loadCampsForLedger() {
         if (error) throw error;
         allCamps = camps || [];
         if (allCamps.length > 0) {
-            campSelect.innerHTML = allCamps.map(c => 
+            // 🌟 เพิ่มตัวเลือก "ดูรวมทั้งหมด (Overview)" เข้าไปเป็นตัวเลือกแรก
+            let optionsHTML = '<option value="all" class="font-bold text-blue-600">🌎 ดูรวมทั้งหมด (Overview)</option>';
+            
+            optionsHTML += allCamps.map(c => 
                 `<option value="${c.id}" ${c.is_active ? 'selected' : ''}>${c.name} ${c.is_active ? '(ปัจจุบัน)' : ''}</option>`
             ).join('');
+            
+            campSelect.innerHTML = optionsHTML;
         } else {
             campSelect.innerHTML = '<option value="">ไม่มีข้อมูลโครงการ</option>';
         }
@@ -105,11 +110,17 @@ async function fetchLedgerTransactions() {
     try {
         let query = supabaseClient.from('transactions').select(`*, clearances (purpose, department)`).order('created_at', { ascending: false });
         let selectedDept = 'all';
+        
         if (currentLedgerView === 'project') {
             const selectedCampId = document.getElementById('camp-filter')?.value;
             selectedDept = document.getElementById('dept-filter')?.value || 'all';
-            if (selectedCampId) query = query.eq('camp_id', selectedCampId);
+            
+            // 🌟 ดักเงื่อนไข: ถ้าไม่ได้เลือก "ดูรวมทั้งหมด (all)" ให้ดึงเฉพาะโครงการนั้น
+            if (selectedCampId && selectedCampId !== 'all') {
+                query = query.eq('camp_id', selectedCampId);
+            }
         }
+        
         const { data: trans, error } = await query;
         if (error) throw error;
 
@@ -162,7 +173,7 @@ window.viewLedgerDetails = async function(clearanceId) {
         
         content.innerHTML = `
             <div class="space-y-2 pb-4 border-b">
-                <p class="text-xs text-gray-500">โครงการ: <b>${clearance.camps.name}</b></p>
+                <p class="text-xs text-gray-500">โครงการ: <b>${clearance.camps?.name || 'ทั่วไป'}</b></p>
                 <p class="text-xs text-gray-500">หัวข้อ: <b class="text-gray-800">${cleanText(clearance.purpose)}</b></p>
             </div>
             <div class="mt-4">
@@ -200,9 +211,18 @@ function formatNet(amount) {
 async function getReportData() {
     const selectedCampId = document.getElementById('camp-filter').value;
     if (!selectedCampId) throw new Error("กรุณาเลือกโครงการ");
-    const camp = allCamps.find(c => c.id === selectedCampId);
     
-    const { data: clearances } = await supabaseClient.from('clearances').select('*').eq('camp_id', camp.id).eq('status', 'cleared');
+    let campNameForReport = 'รวมทั้งหมด (ภาพรวม)';
+    let query = supabaseClient.from('clearances').select('*, camps(name)').eq('status', 'cleared');
+    
+    // 🌟 ถ้าไม่ได้เลือก "all" ค่อยฟิลเตอร์ตาม ID
+    if (selectedCampId !== 'all') {
+        const camp = allCamps.find(c => c.id === selectedCampId);
+        if (camp) campNameForReport = camp.name;
+        query = query.eq('camp_id', selectedCampId);
+    }
+    
+    const { data: clearances } = await query;
     const safeClearances = clearances || [];
 
     let totalIncome = 0;
@@ -213,7 +233,11 @@ async function getReportData() {
     safeClearances.forEach(c => {
         const isInc = c.request_type === 'income' || c.request_type === 'other_income';
         const amt = parseFloat(c.actual_amount || c.total_amount || 0);
-        const purpose = cleanText(c.purpose);
+        
+        // ถ้ารวมหลายโครงการ ให้เอาชื่อโครงการแปะนำหน้า purpose ด้วย
+        const campPrefix = (selectedCampId === 'all' && c.camps) ? `[${c.camps.name}] ` : '';
+        const purpose = campPrefix + cleanText(c.purpose);
+        
         const dept = c.department || 'ทั่วไป';
 
         if (isInc) {
@@ -234,7 +258,7 @@ async function getReportData() {
         }
     });
 
-    return { camp, generalIncomes, departmentsData, totalIncome, totalExpense, net: totalIncome - totalExpense };
+    return { camp: { name: campNameForReport }, generalIncomes, departmentsData, totalIncome, totalExpense, net: totalIncome - totalExpense };
 }
 
 // ================= ระบบสร้าง PDF (Preview และ Absolute DOM Injection) ================= //
@@ -293,7 +317,6 @@ window.exportPDF = async function() {
         const totalExpSum = data.totalExpense;
         const accountingBalance = formValues.broughtFwd + data.net - formValues.pendingExp;
         
-        // 🌟 แยกเฉพาะไส้ในของเอกสาร (ไม่มีขอบ/การจัดกลาง) เพื่อเอาไปใช้ซ้ำ
         let innerHtmlStr = `
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
@@ -309,7 +332,7 @@ window.exportPDF = async function() {
                     <img src="../images/arsatu_ls.png" style="width: 140px; height: auto; display: block; margin: 0 auto 15px auto;" onerror="this.style.display='none'" alt="Logo">
                     <div style="font-weight: bold; font-size: 18px; margin-bottom: 4px;">ชุมนุมค่ายอาสาพัฒนาชนบท มหาวิทยาลัยธรรมศาสตร์</div>
                     <div style="font-weight: bold; font-size: 18px; margin-bottom: 4px;">สรุปรายการการเงิน</div>
-                    <div style="font-weight: bold; font-size: 18px;">โครงการ${data.camp.name}</div>
+                    <div style="font-weight: bold; font-size: 18px;">โครงการ: ${data.camp.name}</div>
                 </div>
                 
                 <table class="pdf-table">
@@ -400,7 +423,6 @@ window.exportPDF = async function() {
         </div>
         `;
 
-        // 🌟 เก็บไส้ในของ PDF ไว้ส่งให้เครื่องปริ้นท์
         window.rawPdfHtmlContent = innerHtmlStr;
 
         let previewModal = document.getElementById('pdf-preview-modal');
@@ -411,10 +433,8 @@ window.exportPDF = async function() {
             document.body.appendChild(previewModal);
         }
 
-        // หุ้มกล่องสำหรับโชว์ใน Preview และใช้เป็น Source สำหรับสร้าง PDF ในตัวเดียวกัน
         previewModal.innerHTML = `
             <div class="bg-gray-100 rounded-xl shadow-2xl w-full max-w-5xl flex flex-col my-4 sm:my-8 border border-gray-300">
-                <!-- ส่วนหัวเมนู -->
                 <div class="bg-white px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0 z-10 rounded-t-xl">
                     <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
                         <i data-lucide="file-text" class="w-5 h-5 text-emerald-600"></i> ตัวอย่างเอกสารก่อนพิมพ์
@@ -427,7 +447,6 @@ window.exportPDF = async function() {
                     </div>
                 </div>
                 
-                <!-- กล่องกระดาษจำลอง (ใช้เป็นทั้ง Preview และเป้าหมายในการแคป PDF) -->
                 <div class="p-4 sm:p-8 overflow-x-auto flex justify-center items-start min-h-[50vh] bg-gray-200 rounded-b-xl">
                     <div id="pdf-print-source" class="shadow-lg border border-gray-300 bg-white" style="width: 210mm; min-height: 297mm; padding: 15mm 20mm; box-sizing: border-box;">
                         ${innerHtmlStr}
@@ -449,7 +468,7 @@ window.exportPDF = async function() {
 window.closePdfPreview = function() {
     const modal = document.getElementById('pdf-preview-modal');
     if (modal) modal.classList.add('hidden');
-    document.body.style.overflow = 'auto'; // คืนค่าการเลื่อนหน้าเว็บ
+    document.body.style.overflow = 'auto';
 };
 
 // ================= ฟังก์ชันดาวน์โหลด PDF (Bypass หน้าจอ แก้ขอบขาด 100%) ================= //
@@ -463,10 +482,7 @@ window.downloadPdfFromPreview = async function(campName) {
 
     Swal.fire({ title: 'กำลังสร้างไฟล์ PDF...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
-    // 🌟 เอาเงาและกรอบออกชั่วคราวตอนปริ้นท์
     sourceElement.classList.remove('shadow-lg', 'border', 'border-gray-300');
-    
-    // 🌟 แก้ปัญหาหน้าเปล่าแผ่นที่ 2: เอา min-height ออกชั่วคราว เพื่อไม่ให้เศษทศนิยมดันล้นหน้า
     const originalMinHeight = sourceElement.style.minHeight;
     sourceElement.style.minHeight = 'auto';
 
@@ -483,12 +499,10 @@ window.downloadPdfFromPreview = async function(campName) {
         };
 
         await html2pdf().set(opt).from(sourceElement).save();
-        
         Swal.close();
     } catch (err) {
         Swal.fire('ข้อผิดพลาดในการโหลด PDF', err.message, 'error');
     } finally {
-        // 🌟 คืนค่า CSS กลับมาให้หน้า Preview กลับมามีกรอบและเป็นทรง A4 เหมือนเดิม
         sourceElement.classList.add('shadow-lg', 'border', 'border-gray-300');
         sourceElement.style.minHeight = originalMinHeight;
     }

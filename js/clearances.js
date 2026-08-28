@@ -27,6 +27,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupDynamicItems();
     setupBankOptions();
 
+    // 🌟 ตั้งค่าเริ่มต้นช่องวันที่เป็น "วันพรุ่งนี้"
+    const dateInput = document.getElementById('required-date');
+    if (dateInput) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        dateInput.value = tomorrow.toISOString().split('T')[0];
+    }
+
     if (draftId) await loadDraftData(draftId);
 });
 
@@ -51,7 +59,10 @@ async function loadDraftData(id) {
         document.getElementById('camp-select').value = clearance.camp_id;
         document.getElementById('department-select').value = clearance.department;
         document.getElementById('purpose').value = clearance.purpose;
-        document.getElementById('remark').value = clearance.remark || '';
+        
+        document.getElementById('remark').value = clearance.remark || ''; // 🌟 เติมบรรทัดนี้กลับเข้าไปครับ
+        if (clearance.required_date) document.getElementById('required-date').value = clearance.required_date;
+        
         const typeRadio = document.querySelector(`input[name="request_type"][value="${clearance.request_type}"]`);
         if (typeRadio) typeRadio.checked = true;
 
@@ -252,9 +263,10 @@ async function submitClearance(targetStatus) {
     const requestType = document.querySelector('input[name="request_type"]:checked')?.value;
     const files = document.getElementById('receipt-file').files;
     const remark = document.getElementById('remark').value;
+    const requiredDate = document.getElementById('required-date').value; // 🌟 ดึงค่าวันที่
 
-    if (!campId || !department || !purpose || !requestType) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณากรอกข้อมูลส่วนหลักให้ครบถ้วน', 'warning');
-    
+    // 🌟 อัปเดตเช็ค Error ให้รวม requiredDate ด้วย
+    if (!campId || !department || !purpose || !requestType || !requiredDate) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณากรอกข้อมูลส่วนหลักให้ครบถ้วน', 'warning');
     // 🌟 อัปเดตเงื่อนไข: ตรวจสอบว่าต้องมีไฟล์ใหม่ หรือ ไฟล์จากคลังอย่างใดอย่างหนึ่ง
     if (targetStatus === 'pending' && files.length === 0 && selectedVaultFiles.length === 0 && requestType !== 'advance') {
         return Swal.fire('ต้องมีหลักฐาน', 'การส่งเบิกเงินคืน จำเป็นต้องแนบสลิป/ใบเสร็จ อย่างน้อย 1 ไฟล์ (อัปโหลดใหม่ หรือเลือกจากคลัง)', 'warning');
@@ -289,6 +301,7 @@ async function submitClearance(targetStatus) {
             html: `
                 <div class="text-left text-sm mt-3 border-t border-gray-100 pt-4 space-y-2">
                     <p class="text-gray-500">หัวข้อ: <span class="font-bold text-gray-800">${purpose}</span></p>
+                    <p class="text-gray-500">วันที่รายการ: <span class="font-bold text-blue-600">${new Date(requiredDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}</span></p>
                     <p class="text-gray-500">ยอดรวมขอเบิก: <span class="font-extrabold text-blue-600 text-xl">${totalAmount.toLocaleString('th-TH', {minimumFractionDigits: 2})} ฿</span></p>
                     <p class="text-[11px] text-green-600 font-bold mt-2"><i data-lucide="paperclip" class="w-3.5 h-3.5 inline"></i> แนบเอกสาร: อัปโหลด ${files.length} / คลัง ${selectedVaultFiles.length} รูป</p>
                 </div>
@@ -328,7 +341,7 @@ async function submitClearance(targetStatus) {
             receiptUrlsJson = JSON.stringify(finalUrls);
         }
 
-        const clearanceDataPayload = { user_id: currentUser.id, camp_id: campId, department: department, purpose: purpose, request_type: requestType, total_amount: totalAmount, receive_bank_name: finalBankName, receive_bank_account: finalBankAccount, receive_account_name: finalAccountName, remark: remark, status: targetStatus };
+        const clearanceDataPayload = { user_id: currentUser.id, camp_id: campId, department: department, purpose: purpose, request_type: requestType, total_amount: totalAmount, receive_bank_name: finalBankName, receive_bank_account: finalBankAccount, receive_account_name: finalAccountName, remark: remark, status: targetStatus, required_date: requiredDate };
         if (receiptUrlsJson) clearanceDataPayload.receipt_image_url = receiptUrlsJson;
 
         let returnedClearanceId = null;
