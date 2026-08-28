@@ -145,7 +145,7 @@ async function fetchLedgerTransactions() {
             const targetId = t.clearance_id ? `'${t.clearance_id}'` : null;
             
             // 🌟 สร้างปุ่ม Edit เฉพาะถ้าผู้ใช้เป็น Admin
-            const editBtn = isAdmin ? `<button onclick="editTransactionCamp('${t.id}', ${targetId}, '${t.camp_id}')" class="text-orange-500 hover:bg-orange-50 p-1.5 rounded-lg border border-orange-100" title="แก้ไขโครงการ"><i data-lucide="edit-3" class="w-4 h-4"></i></button>` : '';
+const editBtn = isAdmin ? `<button onclick="editTransactionCamp('${t.id}', ${targetId}, '${t.camp_id}', '${dept}')" class="text-orange-500 hover:bg-orange-50 p-1.5 rounded-lg border border-orange-100" title="Hard-Edit ข้อมูล"><i data-lucide="edit-3" class="w-4 h-4"></i></button>` : '';
 
             return `
             <tr class="hover:bg-gray-50 border-b border-gray-50">
@@ -167,45 +167,90 @@ async function fetchLedgerTransactions() {
 }
 
 // 🌟 ฟังก์ชันใหม่: สำหรับกดแก้ไขเปลี่ยนโครงการ
-window.editTransactionCamp = async function(transactionId, clearanceId, currentCampId) {
+// ================= ระบบ Hard-Edit สมุดบัญชี ================= //
+window.editTransactionCamp = async function(transactionId, clearanceId, currentCampId, currentDept) {
+    // 1. ดักการเข้าถึงด้วย PIN แอดมิน (ป้องกันมือลั่นและจำกัดสิทธิ์)
+    const { value: pin } = await Swal.fire({
+        title: '🔒 Hard-Edit Mode',
+        text: 'การแก้ไขนี้จะเขียนทับข้อมูลและส่งผลต่อรายงานโดยตรง',
+        input: 'password',
+        inputLabel: 'กรุณากรอกรหัส PIN',
+        inputPlaceholder: 'รหัสผ่าน...',
+        showCancelButton: true,
+        confirmButtonText: 'ปลดล็อก',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#f97316'
+    });
+
+    if (pin !== 'Treasure@2025') {
+        if (pin) Swal.fire('ปฏิเสธการเข้าถึง', 'รหัส PIN ไม่ถูกต้อง', 'error');
+        return;
+    }
+
+    // 2. เตรียมตัวเลือกโครงการและฝ่าย
     let optionsHTML = '<option value="ffffffff-ffff-ffff-ffff-ffffffffffff" ' + ('ffffffff-ffff-ffff-ffff-ffffffffffff' === currentCampId ? 'selected' : '') + '>ส่วนกลาง (ไม่ผูกโครงการ)</option>';
     allCamps.forEach(c => {
         optionsHTML += `<option value="${c.id}" ${c.id === currentCampId ? 'selected' : ''}>${c.name}</option>`;
     });
 
-    const { value: newCampId, isConfirmed } = await Swal.fire({
-        title: 'แก้ไขโครงการที่จัดสรร',
+    const depts = ["รายรับส่วนกลาง", "รายจ่ายส่วนกลาง", "สวัสดิการ", "สถานที่", "พยาบาล", "วิชาการ", "สัมพันธ์", "สันทนาการ", "ประเมินผล", "เหรัญญิก", "PR (ประชาสัมพันธ์)", "สปอนเซอร์", "พี่ค่าย", "ประธานค่าย"];
+    let deptOptionsHTML = '<option value="">-- ไม่ระบุฝ่าย (ปล่อยว่าง) --</option>';
+    depts.forEach(d => {
+        deptOptionsHTML += `<option value="${d}" ${d === currentDept ? 'selected' : ''}>${d}</option>`;
+    });
+
+    // 3. แสดงหน้าต่างฟอร์มแก้ไขเชิงลึก
+    const { value: formValues, isConfirmed } = await Swal.fire({
+        title: '✏️ แก้ไขข้อมูลบัญชีระดับลึก',
         html: `
-            <div class="text-left mt-4">
-                <label class="block text-sm font-bold text-gray-700 mb-2">เลือกโครงการใหม่:</label>
-                <select id="swal-edit-camp" class="w-full border border-gray-300 rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none">
-                    ${optionsHTML}
-                </select>
+            <div class="text-left mt-4 space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">ย้ายโครงการ:</label>
+                    <select id="swal-edit-camp" class="w-full border border-gray-300 rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-orange-500 outline-none">
+                        ${optionsHTML}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">แก้ไขฝ่าย (Department):</label>
+                    <select id="swal-edit-dept" class="w-full border border-gray-300 rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-orange-500 outline-none">
+                        ${deptOptionsHTML}
+                    </select>
+                </div>
             </div>
         `,
         showCancelButton: true,
-        confirmButtonText: 'บันทึก',
+        confirmButtonText: 'บันทึกการเปลี่ยนแปลง',
         cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#3b82f6',
+        confirmButtonColor: '#10b981',
         preConfirm: () => {
-            return document.getElementById('swal-edit-camp').value;
+            return {
+                newCampId: document.getElementById('swal-edit-camp').value,
+                newDept: document.getElementById('swal-edit-dept').value
+            };
         }
     });
 
-    if (isConfirmed && newCampId && newCampId !== currentCampId) {
-        Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+    // 4. อัปเดตฐานข้อมูลทั้งฝั่งใบเบิกและประวัติการโอนเงิน
+    if (isConfirmed && formValues) {
+        Swal.fire({ title: 'กำลังเขียนทับข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
         try {
-            // อัปเดตในตาราง transactions
-            const { error: txError } = await supabaseClient.from('transactions').update({ camp_id: newCampId }).eq('id', transactionId);
-            if (txError) throw txError;
+            const { newCampId, newDept } = formValues;
 
-            // ถ้ามีรายการผูกกับใบเบิก ให้อัปเดตใน clearances ด้วย
             if (clearanceId) {
-                const { error: clError } = await supabaseClient.from('clearances').update({ camp_id: newCampId }).eq('id', clearanceId);
+                // อัปเดตใบเบิกหลัก
+                const { error: clError } = await supabaseClient.from('clearances').update({ camp_id: newCampId, department: newDept }).eq('id', clearanceId);
                 if (clError) throw clError;
+
+                // กวาดอัปเดตประวัติการโอนเงิน (transactions) ทุกเส้นที่ผูกกับใบเบิกนี้
+                const { error: txAllError } = await supabaseClient.from('transactions').update({ camp_id: newCampId }).eq('clearance_id', clearanceId);
+                if (txAllError) throw txAllError;
+            } else {
+                // อัปเดตเฉพาะประวัติการโอนเงิน กรณีเป็นรายการที่แอดมินเพิ่มเอง (ไม่มีใบเบิก)
+                const { error: txError } = await supabaseClient.from('transactions').update({ camp_id: newCampId }).eq('id', transactionId);
+                if (txError) throw txError;
             }
 
-            Swal.fire('สำเร็จ', 'ย้ายรายการไปยังโครงการใหม่เรียบร้อยแล้ว', 'success');
+            Swal.fire('สำเร็จ', 'เขียนทับข้อมูลบัญชีเรียบร้อยแล้ว', 'success');
             fetchLedgerTransactions();
         } catch (err) {
             Swal.fire('ข้อผิดพลาด', err.message, 'error');
