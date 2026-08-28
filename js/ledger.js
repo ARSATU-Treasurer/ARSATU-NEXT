@@ -166,7 +166,6 @@ const editBtn = isAdmin ? `<button onclick="editTransactionCamp('${t.id}', ${tar
     } catch (err) { container.innerHTML = `<tr><td colspan="6" class="text-center text-red-500">${err.message}</td></tr>`; }
 }
 
-// 🌟 ฟังก์ชันใหม่: สำหรับกดแก้ไขเปลี่ยนโครงการ
 // ================= ระบบ Hard-Edit สมุดบัญชี ================= //
 window.editTransactionCamp = async function(transactionId, clearanceId, currentCampId, currentDept) {
     // 1. ดักการเข้าถึงด้วย PIN แอดมิน (ป้องกันมือลั่นและจำกัดสิทธิ์)
@@ -193,7 +192,8 @@ window.editTransactionCamp = async function(transactionId, clearanceId, currentC
         optionsHTML += `<option value="${c.id}" ${c.id === currentCampId ? 'selected' : ''}>${c.name}</option>`;
     });
 
-    const depts = ["รายรับส่วนกลาง", "รายจ่ายส่วนกลาง", "สวัสดิการ", "สถานที่", "พยาบาล", "วิชาการ", "สัมพันธ์", "สันทนาการ", "ประเมินผล", "เหรัญญิก", "PR (ประชาสัมพันธ์)", "สปอนเซอร์", "พี่ค่าย", "ประธานค่าย"];
+    // 🌟 แก้ไขให้เหลือแค่คำว่า "ส่วนกลาง"
+    const depts = ["ส่วนกลาง", "สวัสดิการ", "สถานที่", "พยาบาล", "วิชาการ", "สัมพันธ์", "สันทนาการ", "ประเมินผล", "เหรัญญิก", "PR (ประชาสัมพันธ์)", "สปอนเซอร์", "พี่ค่าย", "ประธานค่าย"];
     let deptOptionsHTML = '<option value="">-- ไม่ระบุฝ่าย (ปล่อยว่าง) --</option>';
     depts.forEach(d => {
         deptOptionsHTML += `<option value="${d}" ${d === currentDept ? 'selected' : ''}>${d}</option>`;
