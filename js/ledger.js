@@ -307,6 +307,8 @@ function formatNet(amount) {
     return num.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// ================= ระบบจัดเตรียมข้อมูล Report ================= //
+
 async function getReportData() {
     const selectedCampId = document.getElementById('camp-filter').value;
     if (!selectedCampId) throw new Error("กรุณาเลือกโครงการ");
@@ -339,7 +341,8 @@ async function getReportData() {
 
         if (isInc) {
             totalIncome += amt;
-            if (dept !== 'ส่วนกลาง' && dept !== 'ทั่วไป') {
+            // 🌟 ให้เอา 'ส่วนกลาง' มารวมในตารางหมวดหมู่ด้วย ไม่ต้องแยกไปเป็นรายรับทั่วไป
+            if (dept !== 'ทั่วไป') {
                 if(!departmentsData[dept]) departmentsData[dept] = { items: [], inc: 0, exp: 0 };
                 departmentsData[dept].items.push({ name: purpose, inc: amt, exp: 0 });
                 departmentsData[dept].inc += amt;
@@ -348,7 +351,8 @@ async function getReportData() {
             }
         } else {
             totalExpense += amt;
-            let targetDept = dept === 'ส่วนกลาง' ? 'รายจ่ายส่วนกลาง' : dept;
+            // 🌟 ใช้ชื่อฝ่ายตรงๆ เลย ถ้าเป็น "ส่วนกลาง" ก็ให้บันทึกในชื่อ "ส่วนกลาง" ไปเลย
+            let targetDept = dept; 
             if(!departmentsData[targetDept]) departmentsData[targetDept] = { items: [], inc: 0, exp: 0 };
             departmentsData[targetDept].items.push({ name: purpose, inc: 0, exp: amt });
             departmentsData[targetDept].exp += amt;
@@ -451,7 +455,8 @@ window.exportPDF = async function() {
         }
 
         for (const [dept, info] of Object.entries(data.departmentsData)) {
-            let deptLabel = dept.includes('ฝ่าย') || dept.includes('รายจ่าย') ? dept : `ฝ่าย${dept}`;
+            // 🌟 เช็คชื่อหัวข้อ (ถ้าเป็น ส่วนกลาง/ทั่วไป/PR ไม่ต้องใส่คำว่า ฝ่าย)
+            let deptLabel = (dept === 'ส่วนกลาง' || dept === 'ทั่วไป' || dept.includes('ฝ่าย') || dept.includes('PR')) ? dept : `ฝ่าย${dept}`;
             innerHtmlStr += `<tr style="page-break-inside: avoid;"><td colspan="4" style="padding: 10px 0 4px 0; font-weight: bold;">${deptLabel}</td></tr>`;
             
             info.items.forEach(item => {
@@ -459,7 +464,8 @@ window.exportPDF = async function() {
             });
             
             let deptNet = info.inc - info.exp;
-            innerHtmlStr += `<tr style="font-weight: bold; page-break-inside: avoid;"><td style="padding: 6px 0 6px 20px;">รวมค่าใช้จ่าย${deptLabel}</td><td class="pdf-td-num">${formatMoney(info.inc)}</td><td class="pdf-td-num">${formatMoney(info.exp)}</td><td class="pdf-td-num">${formatNet(deptNet)}</td></tr>`;
+            // 🌟 ใช้คำว่า 'รวม + ชื่อหัวข้อ'
+            innerHtmlStr += `<tr style="font-weight: bold; page-break-inside: avoid;"><td style="padding: 6px 0 6px 20px;">รวม${deptLabel}</td><td class="pdf-td-num">${formatMoney(info.inc)}</td><td class="pdf-td-num">${formatMoney(info.exp)}</td><td class="pdf-td-num">${formatNet(deptNet)}</td></tr>`;
         }
 
         innerHtmlStr += `
@@ -603,6 +609,8 @@ window.downloadPdfFromPreview = async function(campName) {
     }
 };
 
+// ================= ระบบดาวน์โหลดรายงาน Excel ================= //
+
 window.exportExcel = async function() {
     Swal.fire({ title: 'กำลังสร้างไฟล์ Excel...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
     try {
@@ -624,10 +632,12 @@ window.exportExcel = async function() {
         }
 
         for (const [dept, info] of Object.entries(data.departmentsData)) {
-            let deptLabel = dept.includes('ฝ่าย') || dept.includes('รายจ่าย') ? dept : `ฝ่าย${dept}`;
+            // 🌟 เช็คชื่อหัวข้อให้ตรงกับ PDF
+            let deptLabel = (dept === 'ส่วนกลาง' || dept === 'ทั่วไป' || dept.includes('ฝ่าย') || dept.includes('PR')) ? dept : `ฝ่าย${dept}`;
             excelData.push([deptLabel, '', '']);
             info.items.forEach(item => { excelData.push([`  ${item.name}`, item.inc > 0 ? item.inc : '', item.exp > 0 ? item.exp : '']); });
-            excelData.push([`รวมค่าใช้จ่าย${deptLabel}`, info.inc, info.exp]);
+            
+            excelData.push([`รวม${deptLabel}`, info.inc, info.exp]);
         }
 
         excelData.push(['']);
