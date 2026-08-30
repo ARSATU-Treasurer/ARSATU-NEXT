@@ -265,6 +265,33 @@ window.viewLedgerDetails = async function(clearanceId) {
         
         let itemsHTML = (items || []).map((item, i) => `<div class="flex justify-between text-xs py-1"><span>${i+1}. ${item.description}</span><span class="font-bold">${parseFloat(item.amount).toLocaleString('th-TH')} ฿</span></div>`).join('');
         
+        // 🌟 เพิ่มส่วนดึงรูปหลักฐาน (สลิปโอนเงิน / ใบเสร็จ / PDF)
+        let evidenceHTML = '';
+        let receiptFiles = [];
+        if (clearance.receipt_image_url) {
+            try {
+                const parsed = JSON.parse(clearance.receipt_image_url);
+                if (Array.isArray(parsed)) receiptFiles = parsed;
+                else receiptFiles = [clearance.receipt_image_url];
+            } catch (e) {
+                receiptFiles = [clearance.receipt_image_url];
+            }
+        }
+        
+        if (receiptFiles.length > 0) {
+            evidenceHTML += `<div class="mb-3"><p class="text-[10px] font-bold text-gray-500 mb-1 uppercase tracking-wider">หลักฐาน/ใบเสร็จ</p><div class="grid grid-cols-2 gap-2">`;
+            evidenceHTML += receiptFiles.map(url => url.toLowerCase().includes('.pdf')
+                 ? `<a href="${url}" target="_blank" class="p-2 bg-red-50 text-red-600 rounded text-[10px] font-bold border border-red-100 text-center flex flex-col items-center justify-center"><i data-lucide="file-text" class="w-4 h-4 mb-1"></i> ดูไฟล์ PDF</a>`
+                 : `<a href="${url}" target="_blank" class="block rounded border border-gray-200 overflow-hidden"><img src="${url}" class="w-full h-24 object-cover"></a>`
+            ).join('');
+            evidenceHTML += `</div></div>`;
+        }
+        
+        if (clearance.advance_slip_url) evidenceHTML += `<div class="mb-3"><p class="text-[10px] font-bold text-blue-500 mb-1 uppercase tracking-wider">สลิปเงินทดรองจ่าย</p><a href="${clearance.advance_slip_url}" target="_blank" class="block w-1/2 rounded border border-blue-200 overflow-hidden shadow-sm"><img src="${clearance.advance_slip_url}" class="w-full h-24 object-cover"></a></div>`;
+        if (clearance.refund_slip_url) evidenceHTML += `<div class="mb-3"><p class="text-[10px] font-bold text-green-500 mb-1 uppercase tracking-wider">สลิปคืนเงินส่วนต่าง</p><a href="${clearance.refund_slip_url}" target="_blank" class="block w-1/2 rounded border border-green-200 overflow-hidden shadow-sm"><img src="${clearance.refund_slip_url}" class="w-full h-24 object-cover"></a></div>`;
+        if (clearance.reimburse_slip_url) evidenceHTML += `<div class="mb-3"><p class="text-[10px] font-bold text-purple-500 mb-1 uppercase tracking-wider">สลิปโอนเงินชดเชย</p><a href="${clearance.reimburse_slip_url}" target="_blank" class="block w-1/2 rounded border border-purple-200 overflow-hidden shadow-sm"><img src="${clearance.reimburse_slip_url}" class="w-full h-24 object-cover"></a></div>`;
+        
+        // 🌟 นำ evidenceHTML ไปต่อท้ายใน Modal
         content.innerHTML = `
             <div class="space-y-2 pb-4 border-b">
                 <p class="text-xs text-gray-500">โครงการ: <b>${clearance.camps?.name || 'ส่วนกลาง'}</b></p>
@@ -275,9 +302,18 @@ window.viewLedgerDetails = async function(clearanceId) {
                 ${itemsHTML}
                 <div class="text-right mt-3"><p class="text-xl font-bold text-blue-600">${parseFloat(clearance.total_amount).toLocaleString('th-TH')} ฿</p></div>
             </div>
+            <div class="pt-2 mt-4 border-t border-gray-100">
+                <p class="text-xs font-bold text-gray-700 mb-2 mt-2">เอกสารอ้างอิง</p>
+                ${evidenceHTML || '<p class="text-xs text-gray-400">ไม่มีเอกสารแนบ</p>'}
+            </div>
         `;
+        
+        // อัปเดตไอคอนของ Lucide สำหรับปุ่ม PDF
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+
     } catch(err) { content.innerHTML = `<p class="text-red-500 text-center">${err.message}</p>`; }
 };
+
 window.closeModal = function() { document.getElementById('details-modal').classList.add('hidden'); };
 
 // ================= ระบบจัดเตรียมข้อมูล Report ================= //
