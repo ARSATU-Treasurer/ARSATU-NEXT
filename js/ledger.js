@@ -3,7 +3,7 @@
 let currentLedgerView = 'main';
 let cachedProfileName = 'ไม่ระบุชื่อ';
 let allCamps = [];
-let isAdmin = false; // 🌟 เพิ่มตัวแปรเช็คสิทธิ์แอดมิน
+let isAdmin = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (profile) {
             cachedProfileName = profile.full_name || 'ไม่ระบุชื่อ';
             if (profile.role === 'admin') {
-                isAdmin = true; // 🌟 เซ็ตค่าสิทธิ์แอดมินเป็น true
+                isAdmin = true;
                 const adminLink = document.getElementById('admin-action-link');
                 if (adminLink) adminLink.classList.remove('hidden');
             }
@@ -144,8 +144,7 @@ async function fetchLedgerTransactions() {
             
             const targetId = t.clearance_id ? `'${t.clearance_id}'` : null;
             
-            // 🌟 สร้างปุ่ม Edit เฉพาะถ้าผู้ใช้เป็น Admin
-const editBtn = isAdmin ? `<button onclick="editTransactionCamp('${t.id}', ${targetId}, '${t.camp_id}', '${dept}')" class="text-orange-500 hover:bg-orange-50 p-1.5 rounded-lg border border-orange-100" title="Hard-Edit ข้อมูล"><i data-lucide="edit-3" class="w-4 h-4"></i></button>` : '';
+            const editBtn = isAdmin ? `<button onclick="editTransactionCamp('${t.id}', ${targetId}, '${t.camp_id}', '${dept}')" class="text-orange-500 hover:bg-orange-50 p-1.5 rounded-lg border border-orange-100" title="Hard-Edit ข้อมูล"><i data-lucide="edit-3" class="w-4 h-4"></i></button>` : '';
 
             return `
             <tr class="hover:bg-gray-50 border-b border-gray-50">
@@ -168,7 +167,6 @@ const editBtn = isAdmin ? `<button onclick="editTransactionCamp('${t.id}', ${tar
 
 // ================= ระบบ Hard-Edit สมุดบัญชี ================= //
 window.editTransactionCamp = async function(transactionId, clearanceId, currentCampId, currentDept) {
-    // 1. ดักการเข้าถึงด้วย PIN แอดมิน (ป้องกันมือลั่นและจำกัดสิทธิ์)
     const { value: pin } = await Swal.fire({
         title: '🔒 Hard-Edit Mode',
         text: 'การแก้ไขนี้จะเขียนทับข้อมูลและส่งผลต่อรายงานโดยตรง',
@@ -186,13 +184,11 @@ window.editTransactionCamp = async function(transactionId, clearanceId, currentC
         return;
     }
 
-    // 2. เตรียมตัวเลือกโครงการและฝ่าย
     let optionsHTML = '<option value="ffffffff-ffff-ffff-ffff-ffffffffffff" ' + ('ffffffff-ffff-ffff-ffff-ffffffffffff' === currentCampId ? 'selected' : '') + '>ส่วนกลาง (ไม่ผูกโครงการ)</option>';
     allCamps.forEach(c => {
         optionsHTML += `<option value="${c.id}" ${c.id === currentCampId ? 'selected' : ''}>${c.name}</option>`;
     });
 
-    // 🌟 แก้ไขให้ตรงกับรายชื่อที่กำหนด
     const depts = [
         "ส่วนกลาง", "อำนวยการ (ประธาน/ รองประธาน)", "เลขานุการ", "เหรัญญิก", 
         "โครงงาน", "อุปกรณ์", "สถานที่", "สวัสดิการ", "สัมพันธ์ชาวบ้าน", 
@@ -203,7 +199,6 @@ window.editTransactionCamp = async function(transactionId, clearanceId, currentC
         deptOptionsHTML += `<option value="${d}" ${d === currentDept ? 'selected' : ''}>${d}</option>`;
     });
 
-    // 3. แสดงหน้าต่างฟอร์มแก้ไขเชิงลึก
     const { value: formValues, isConfirmed } = await Swal.fire({
         title: '✏️ แก้ไขข้อมูลบัญชีระดับลึก',
         html: `
@@ -234,22 +229,18 @@ window.editTransactionCamp = async function(transactionId, clearanceId, currentC
         }
     });
 
-    // 4. อัปเดตฐานข้อมูลทั้งฝั่งใบเบิกและประวัติการโอนเงิน
     if (isConfirmed && formValues) {
         Swal.fire({ title: 'กำลังเขียนทับข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
         try {
             const { newCampId, newDept } = formValues;
 
             if (clearanceId) {
-                // อัปเดตใบเบิกหลัก
                 const { error: clError } = await supabaseClient.from('clearances').update({ camp_id: newCampId, department: newDept }).eq('id', clearanceId);
                 if (clError) throw clError;
 
-                // กวาดอัปเดตประวัติการโอนเงิน (transactions) ทุกเส้นที่ผูกกับใบเบิกนี้
                 const { error: txAllError } = await supabaseClient.from('transactions').update({ camp_id: newCampId }).eq('clearance_id', clearanceId);
                 if (txAllError) throw txAllError;
             } else {
-                // อัปเดตเฉพาะประวัติการโอนเงิน กรณีเป็นรายการที่แอดมินเพิ่มเอง (ไม่มีใบเบิก)
                 const { error: txError } = await supabaseClient.from('transactions').update({ camp_id: newCampId }).eq('id', transactionId);
                 if (txError) throw txError;
             }
@@ -311,8 +302,6 @@ function formatNet(amount) {
     return num.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// ================= ระบบจัดเตรียมข้อมูล Report ================= //
-
 async function getReportData() {
     const selectedCampId = document.getElementById('camp-filter').value;
     if (!selectedCampId) throw new Error("กรุณาเลือกโครงการ");
@@ -340,15 +329,12 @@ async function getReportData() {
         const campPrefix = (selectedCampId === 'all' && c.camps) ? `[${c.camps.name}] ` : '';
         const purpose = campPrefix + cleanText(c.purpose);
         
-        // 🌟 รวบรายการ "ไม่มีฝ่าย" และ "ทั่วไป" ให้กลายเป็น "ส่วนกลาง" ทั้งหมด
         let dept = c.department || 'ส่วนกลาง';
         if (dept === 'ทั่วไป' || dept === '-') dept = 'ส่วนกลาง';
 
-        // คำนวณยอดรวมสุทธิ
         if (isInc) totalIncome += amt;
         else totalExpense += amt;
 
-        // จัดกลุ่มเข้าตามฝ่าย
         if (!departmentsData[dept]) {
             departmentsData[dept] = { items: [], inc: 0, exp: 0 };
         }
@@ -451,28 +437,25 @@ window.exportPDF = async function() {
                     <tbody>
         `;
 
-        // 🌟 ดึงรายชื่อฝ่ายออกมา แล้วเรียงให้ "ส่วนกลาง" อยู่ด้านบนสุดเสมอ
         const sortedDepts = Object.keys(data.departmentsData).sort((a, b) => {
             if (a === 'ส่วนกลาง') return -1;
             if (b === 'ส่วนกลาง') return 1;
-            return a.localeCompare(b, 'th'); // ฝ่ายอื่นเรียงตามตัวอักษร
+            return a.localeCompare(b, 'th');
         });
 
-        // วนลูปสร้างตารางตามฝ่ายที่เรียงแล้ว
         for (const dept of sortedDepts) {
             const info = data.departmentsData[dept];
-            for (const dept of sortedDepts) {
-        const info = data.departmentsData[dept];
-        let deptLabel = dept; // 🌟 ใช้คำตรงๆ ตามที่บันทึกเลย ไม่ต้องเติมคำว่าฝ่าย
+            let deptLabel = dept; 
             
-innerHtmlStr += `<tr style="page-break-inside: avoid;"><td colspan="4" style="padding: 10px 0 4px 0; font-weight: bold;">${deptLabel}</td></tr>`;            
+            innerHtmlStr += `<tr style="page-break-inside: avoid;"><td colspan="4" style="padding: 10px 0 4px 0; font-weight: bold;">${deptLabel}</td></tr>`;
+            
             info.items.forEach(item => {
                 innerHtmlStr += `<tr style="page-break-inside: avoid;"><td style="padding: 2px 0 2px 20px;">${item.name}</td><td class="pdf-td-num">${item.inc > 0 ? formatMoney(item.inc) : ''}</td><td class="pdf-td-num">${item.exp > 0 ? formatMoney(item.exp) : ''}</td><td class="pdf-td-num"></td></tr>`;
             });
             
             let deptNet = info.inc - info.exp;
-        innerHtmlStr += `<tr style="font-weight: bold; page-break-inside: avoid;"><td style="padding: 6px 0 6px 20px;">รวม${deptLabel}</td><td class="pdf-td-num">${formatMoney(info.inc)}</td><td class="pdf-td-num">${formatMoney(info.exp)}</td><td class="pdf-td-num">${formatNet(deptNet)}</td></tr>`;
-    }
+            innerHtmlStr += `<tr style="font-weight: bold; page-break-inside: avoid;"><td style="padding: 6px 0 6px 20px;">รวม${deptLabel}</td><td class="pdf-td-num">${formatMoney(info.inc)}</td><td class="pdf-td-num">${formatMoney(info.exp)}</td><td class="pdf-td-num">${formatNet(deptNet)}</td></tr>`;
+        }
 
         innerHtmlStr += `
                     <tr style="font-weight: bold; page-break-inside: avoid;">
@@ -633,25 +616,23 @@ window.exportExcel = async function() {
             ['รายการ', 'รายรับ', 'รายจ่าย']
         ];
 
-        // 🌟 ดึงรายชื่อฝ่ายออกมา แล้วเรียงให้ "ส่วนกลาง" อยู่ด้านบนสุดเสมอ
         const sortedDepts = Object.keys(data.departmentsData).sort((a, b) => {
             if (a === 'ส่วนกลาง') return -1;
             if (b === 'ส่วนกลาง') return 1;
             return a.localeCompare(b, 'th');
         });
 
-        // วนลูปสร้างแถวข้อมูล
         for (const dept of sortedDepts) {
-        const info = data.departmentsData[dept];
-        let deptLabel = dept; // 🌟 ใช้คำตรงๆ ตามที่บันทึกเลย
-
-        excelData.push([deptLabel, '', '']);
-        info.items.forEach(item => { 
-            excelData.push([`  ${item.name}`, item.inc > 0 ? item.inc : '', item.exp > 0 ? item.exp : '']); 
-        });
-
-        excelData.push([`รวม${deptLabel}`, info.inc, info.exp]);
-    }
+            const info = data.departmentsData[dept];
+            let deptLabel = dept; 
+            
+            excelData.push([deptLabel, '', '']);
+            info.items.forEach(item => { 
+                excelData.push([`  ${item.name}`, item.inc > 0 ? item.inc : '', item.exp > 0 ? item.exp : '']); 
+            });
+            
+            excelData.push([`รวม${deptLabel}`, info.inc, info.exp]);
+        }
 
         excelData.push(['']);
         excelData.push(['รวมสุทธิ', data.totalIncome, data.totalExpense]);
