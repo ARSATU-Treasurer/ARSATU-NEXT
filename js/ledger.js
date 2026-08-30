@@ -192,8 +192,12 @@ window.editTransactionCamp = async function(transactionId, clearanceId, currentC
         optionsHTML += `<option value="${c.id}" ${c.id === currentCampId ? 'selected' : ''}>${c.name}</option>`;
     });
 
-    // 🌟 แก้ไขให้เหลือแค่คำว่า "ส่วนกลาง"
-    const depts = ["ส่วนกลาง", "สวัสดิการ", "สถานที่", "พยาบาล", "วิชาการ", "สัมพันธ์", "สันทนาการ", "ประเมินผล", "เหรัญญิก", "PR (ประชาสัมพันธ์)", "สปอนเซอร์", "พี่ค่าย", "ประธานค่าย"];
+    // 🌟 แก้ไขให้ตรงกับรายชื่อที่กำหนด
+    const depts = [
+        "ส่วนกลาง", "อำนวยการ (ประธาน/ รองประธาน)", "เลขานุการ", "เหรัญญิก", 
+        "โครงงาน", "อุปกรณ์", "สถานที่", "สวัสดิการ", "สัมพันธ์ชาวบ้าน", 
+        "PR", "สปอนเซอร์", "ทะเบียน", "สันทนาการ"
+    ];
     let deptOptionsHTML = '<option value="">-- ไม่ระบุฝ่าย (ปล่อยว่าง) --</option>';
     depts.forEach(d => {
         deptOptionsHTML += `<option value="${d}" ${d === currentDept ? 'selected' : ''}>${d}</option>`;
@@ -457,17 +461,18 @@ window.exportPDF = async function() {
         // วนลูปสร้างตารางตามฝ่ายที่เรียงแล้ว
         for (const dept of sortedDepts) {
             const info = data.departmentsData[dept];
-            let deptLabel = (dept === 'ส่วนกลาง' || dept.includes('ฝ่าย') || dept.includes('PR')) ? dept : `ฝ่าย${dept}`;
+            for (const dept of sortedDepts) {
+        const info = data.departmentsData[dept];
+        let deptLabel = dept; // 🌟 ใช้คำตรงๆ ตามที่บันทึกเลย ไม่ต้องเติมคำว่าฝ่าย
             
-            innerHtmlStr += `<tr style="page-break-inside: avoid;"><td colspan="4" style="padding: 10px 0 4px 0; font-weight: bold;">${deptLabel}</td></tr>`;
-            
+innerHtmlStr += `<tr style="page-break-inside: avoid;"><td colspan="4" style="padding: 10px 0 4px 0; font-weight: bold;">${deptLabel}</td></tr>`;            
             info.items.forEach(item => {
                 innerHtmlStr += `<tr style="page-break-inside: avoid;"><td style="padding: 2px 0 2px 20px;">${item.name}</td><td class="pdf-td-num">${item.inc > 0 ? formatMoney(item.inc) : ''}</td><td class="pdf-td-num">${item.exp > 0 ? formatMoney(item.exp) : ''}</td><td class="pdf-td-num"></td></tr>`;
             });
             
             let deptNet = info.inc - info.exp;
-            innerHtmlStr += `<tr style="font-weight: bold; page-break-inside: avoid;"><td style="padding: 6px 0 6px 20px;">รวม${deptLabel}</td><td class="pdf-td-num">${formatMoney(info.inc)}</td><td class="pdf-td-num">${formatMoney(info.exp)}</td><td class="pdf-td-num">${formatNet(deptNet)}</td></tr>`;
-        }
+        innerHtmlStr += `<tr style="font-weight: bold; page-break-inside: avoid;"><td style="padding: 6px 0 6px 20px;">รวม${deptLabel}</td><td class="pdf-td-num">${formatMoney(info.inc)}</td><td class="pdf-td-num">${formatMoney(info.exp)}</td><td class="pdf-td-num">${formatNet(deptNet)}</td></tr>`;
+    }
 
         innerHtmlStr += `
                     <tr style="font-weight: bold; page-break-inside: avoid;">
@@ -637,16 +642,16 @@ window.exportExcel = async function() {
 
         // วนลูปสร้างแถวข้อมูล
         for (const dept of sortedDepts) {
-            const info = data.departmentsData[dept];
-            let deptLabel = (dept === 'ส่วนกลาง' || dept.includes('ฝ่าย') || dept.includes('PR')) ? dept : `ฝ่าย${dept}`;
-            
-            excelData.push([deptLabel, '', '']);
-            info.items.forEach(item => { 
-                excelData.push([`  ${item.name}`, item.inc > 0 ? item.inc : '', item.exp > 0 ? item.exp : '']); 
-            });
-            
-            excelData.push([`รวม${deptLabel}`, info.inc, info.exp]);
-        }
+        const info = data.departmentsData[dept];
+        let deptLabel = dept; // 🌟 ใช้คำตรงๆ ตามที่บันทึกเลย
+
+        excelData.push([deptLabel, '', '']);
+        info.items.forEach(item => { 
+            excelData.push([`  ${item.name}`, item.inc > 0 ? item.inc : '', item.exp > 0 ? item.exp : '']); 
+        });
+
+        excelData.push([`รวม${deptLabel}`, info.inc, info.exp]);
+    }
 
         excelData.push(['']);
         excelData.push(['รวมสุทธิ', data.totalIncome, data.totalExpense]);

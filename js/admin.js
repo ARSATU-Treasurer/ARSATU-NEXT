@@ -907,8 +907,7 @@ window.registerDocument = async function(clearanceId) {
                 <select id="swal-doc-location" class="swal2-select !m-0 !w-full !text-sm border-gray-200 font-medium">
                     <option value="ห้องค่าย_ตู้ชั้นหนึ่ง">ห้องค่าย_ตู้ชั้นหนึ่ง</option>
                     <option value="ห้องค่าย_ตู้ชั้นสอง">ห้องค่าย_ตู้ชั้นสอง</option>
-                    <option value="อยู่ที่อุ้มรัก">อยู่ที่อุ้มรัก</option>
-                    <option value="อยู่ที่วิน">อยู่ที่วิน</option>
+                    <option value="อยู่ที่เหรัญญิก">อยู่ที่เหรัญญิก</option>
                     <option value="อยู่ที่เลขาฯ" selected>อยู่ที่เลขาฯ</option>
                     <option value="อยู่ที่ฝ่ายอื่น">อยู่ที่ฝ่ายอื่น</option>
                     <option value="หาย">หาย</option>
