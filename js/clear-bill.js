@@ -96,20 +96,41 @@ function calculateDifference(advance, actual) {
     if (diff > 0) {
         container.innerHTML = `
             <div class="bg-red-50 p-4 rounded-xl border border-red-200 mt-2">
-                <p class="text-red-700 font-bold text-sm">คุณต้องโอนคืน: ${diff.toLocaleString('th-TH', {minimumFractionDigits: 2})} ฿</p>
-                <label class="block text-xs font-bold mt-3 mb-1">แนบสลิปโอนเงินคืนชุมนุม <span class="text-red-500">*</span></label>
-                <input type="file" id="refund-slip" accept="image/*,application/pdf" class="w-full text-xs p-1 bg-white border border-red-100 rounded-lg cursor-pointer" required>
+                <div class="flex justify-between items-center mb-3">
+                    <p class="text-red-700 font-bold text-sm">ยอดเงินที่ต้องคืนชุมนุม:</p>
+                    <p class="text-red-700 font-extrabold text-lg">${diff.toLocaleString('th-TH', {minimumFractionDigits: 2})} ฿</p>
+                </div>
+                
+                <!-- 🌟 กรอบแสดงข้อมูลบัญชีสำหรับโอนคืน -->
+                <div class="bg-white p-3 rounded-xl border border-red-100 mb-4 shadow-sm flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-green-50 text-green-600 flex items-center justify-center shrink-0 border border-green-100">
+                        <i data-lucide="building" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">โอนเงินคืนเข้าบัญชีนี้</p>
+                        <p class="text-sm font-bold text-gray-800">ธนาคารกสิกรไทย (KBANK)</p>
+                        <p class="text-sm font-mono text-gray-700 tracking-wider">1623837722</p>
+                        <p class="text-[10px] text-gray-500 mt-0.5">ชื่อบัญชี: ปภาวิน รูปศรี</p>
+                    </div>
+                </div>
+
+                <label class="block text-xs font-bold text-red-700 mt-1 mb-1.5">แนบสลิปโอนเงินคืน <span class="text-red-500">*</span></label>
+                <input type="file" id="refund-slip" accept="image/*,application/pdf" class="w-full text-xs p-1.5 bg-white border border-red-200 rounded-lg cursor-pointer focus:ring-2 focus:ring-red-500 outline-none transition-all shadow-sm" required>
             </div>`;
     } else if (diff < 0) {
         container.innerHTML = `
-            <div class="bg-green-50 p-4 rounded-xl border border-green-200 mt-2">
-                <p class="text-green-700 font-bold text-sm">ชุมนุมต้องโอนคืนคุณ: ${Math.abs(diff).toLocaleString('th-TH', {minimumFractionDigits: 2})} ฿</p>
+            <div class="bg-green-50 p-4 rounded-xl border border-green-200 mt-2 flex justify-between items-center">
+                <p class="text-green-700 font-bold text-sm">ยอดเบิกเกิน (ชุมนุมต้องโอนคืนคุณ):</p>
+                <p class="text-green-700 font-extrabold text-lg">${Math.abs(diff).toLocaleString('th-TH', {minimumFractionDigits: 2})} ฿</p>
             </div>`;
     } else {
         container.innerHTML = `<div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mt-2"><p class="text-gray-600 font-bold text-sm text-center">ยอดใช้จ่ายพอดีกับที่เบิก</p></div>`;
     }
     
     if (actual > 0) actionBtn.classList.remove('hidden'); else actionBtn.classList.add('hidden');
+    
+    // อัปเดตไอคอนของ Lucide ให้แสดงผลในกล่องบัญชีใหม่
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 async function submitClearance() {
