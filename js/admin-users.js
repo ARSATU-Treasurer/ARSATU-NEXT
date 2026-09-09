@@ -152,6 +152,30 @@ async function handleUpdateUser(e) {
     // ดักไว้เผื่อกรณีแก้ตัวเอง
     if (userId === currentAdminId) role = 'admin';
 
+    // 🌟 ดึงข้อมูลผู้ใช้เดิมมาตรวจสอบว่ามีการเปลี่ยน Role หรือไม่
+    const originalUser = allUsers.find(u => u.id === userId);
+    
+    // 🌟 ถ้าระดับสิทธิ์ (Role) ถูกเปลี่ยน ให้เด้งถามรหัสผ่านก่อน
+    if (originalUser && originalUser.role !== role) {
+        const { value: pin } = await Swal.fire({
+            title: '🔒 ยืนยันสิทธิ์ผู้ดูแลระบบ',
+            text: 'การเปลี่ยนสิทธิ์การใช้งาน (Role) จำเป็นต้องยืนยันตัวตน',
+            input: 'password',
+            inputLabel: 'กรุณากรอกรหัสผ่าน (PIN)',
+            inputPlaceholder: 'รหัสผ่าน...',
+            showCancelButton: true,
+            confirmButtonText: 'ยืนยัน',
+            cancelButtonText: 'ยกเลิก',
+            confirmButtonColor: '#059669'
+        });
+
+        // ตรวจสอบรหัส (ใช้รหัสเดียวกับตอนแก้สมุดบัญชี)
+        if (pin !== 'Treasure@2025') {
+            if (pin) Swal.fire('ปฏิเสธการเข้าถึง', 'รหัสผ่านไม่ถูกต้อง', 'error');
+            return; // หยุดการทำงาน บันทึกไม่สำเร็จ
+        }
+    }
+
     const btn = document.getElementById('btn-save-user');
     btn.disabled = true;
     btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 inline animate-spin mr-1"></i>กำลังบันทึก...';

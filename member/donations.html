@@ -33,8 +33,26 @@
         <!-- ฟอร์มส่งยอดเงินบริจาคเข้าค่าย -->
         <div class="bg-white rounded-2xl shadow-sm border border-white p-6">
             <form id="form-donation" class="space-y-4">
+
+                <form id="form-donation" class="space-y-4">
+                
+                <!-- 🌟 เพิ่มกล่องแสดงเลขบัญชีตรงนี้ -->
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 border border-blue-200">
+                        <i data-lucide="building" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">บัญชีกองกลางสำหรับฝากยอดบริจาค</p>
+                        <p class="text-sm font-bold text-gray-800">ธนาคารกรุงไทย (KTB)</p>
+                        <p class="text-sm font-mono text-blue-700 tracking-wider font-extrabold">4753625907</p>
+                        <p class="text-[10px] text-gray-600 mt-0.5">ชื่อบัญชี: ณรัฐนันท์</p>
+                    </div>
+                </div>
+                <!-- 🌟 สิ้นสุดส่วนที่เพิ่ม -->
+
                 <label class="block text-xs font-bold text-gray-700 mb-1">ช่องทางรับเงิน *</label>
                 <div class="grid grid-cols-2 gap-2">
+
                     <label class="p-3 border rounded-xl text-center cursor-pointer hover:border-pink-500 transition-all relative">
                         <input type="radio" name="don-channel" value="โอนตรงเข้าบัญชี" class="sr-only peer" checked>
                         <div class="peer-checked:border-pink-500 peer-checked:bg-pink-50 absolute inset-0 rounded-xl border-2 border-transparent transition-all"></div>
