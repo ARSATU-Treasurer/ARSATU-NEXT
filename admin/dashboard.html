@@ -45,29 +45,29 @@
 
     <main class="p-5 max-w-3xl mx-auto space-y-6 mt-2">
 
-        <!-- 2. กล่องข้อความงานรออนุมัติ (ครอบเฉพาะรายการ) -->
+        <!-- 2. กล่องข้อความงานรออนุมัติ -->
         <div class="bg-white/90 backdrop-blur-sm p-5 rounded-2xl shadow-sm border border-white space-y-4">
             <h2 class="font-bold text-gray-800 flex items-center gap-2 text-sm sm:text-base border-b border-gray-100 pb-3">
                 <i data-lucide="inbox" class="w-5 h-5 text-indigo-500"></i> กล่องข้อความงานรออนุมัติ
             </h2>
-            <!-- แท็บคัดแยกประเภทงาน (ย้ายมาไว้ด้านบนสุดของ Main) -->
-        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-            <button id="tab-pending_expense" onclick="switchTab('pending_expense')" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-md transition-all whitespace-nowrap border border-transparent">
-                💸 รายการขอเบิกเงิน <span id="badge-exp" class="ml-1 bg-red-500 text-white px-1.5 py-0.5 rounded-full text-[10px] hidden">0</span>
-            </button>
-            <button id="tab-pending_income" onclick="switchTab('pending_income')" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-gray-500 hover:bg-gray-50 border border-gray-200 shadow-sm transition-all whitespace-nowrap">
-                📥 ยอดเงินรับเข้าค่าย <span id="badge-inc" class="ml-1 bg-pink-500 text-white px-1.5 py-0.5 rounded-full text-[10px] hidden">0</span>
-            </button>
-            <button id="tab-approved" onclick="switchTab('approved')" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-gray-500 hover:bg-gray-50 border border-gray-200 shadow-sm transition-all whitespace-nowrap">✅ ดำเนินการแล้ว</button>
-            <button id="tab-rejected" onclick="switchTab('rejected')" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-gray-500 hover:bg-gray-50 border border-gray-200 shadow-sm transition-all whitespace-nowrap">❌ ตีกลับ</button>
-        </div>
+            <!-- แท็บคัดแยกประเภทงาน -->
+            <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                <button id="tab-pending_expense" onclick="switchTab('pending_expense')" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-md transition-all whitespace-nowrap border border-transparent">
+                    💸 รายการขอเบิกเงิน <span id="badge-exp" class="ml-1 bg-red-500 text-white px-1.5 py-0.5 rounded-full text-[10px] hidden">0</span>
+                </button>
+                <button id="tab-pending_income" onclick="switchTab('pending_income')" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-gray-500 hover:bg-gray-50 border border-gray-200 shadow-sm transition-all whitespace-nowrap">
+                    📥 ยอดเงินรับเข้าค่าย <span id="badge-inc" class="ml-1 bg-pink-500 text-white px-1.5 py-0.5 rounded-full text-[10px] hidden">0</span>
+                </button>
+                <button id="tab-approved" onclick="switchTab('approved')" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-gray-500 hover:bg-gray-50 border border-gray-200 shadow-sm transition-all whitespace-nowrap">✅ ดำเนินการแล้ว</button>
+                <button id="tab-rejected" onclick="switchTab('rejected')" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-gray-500 hover:bg-gray-50 border border-gray-200 shadow-sm transition-all whitespace-nowrap">❌ ตีกลับ</button>
+            </div>
             
             <div id="requests-container" class="space-y-4">
                 <div class="text-center py-10 text-gray-400"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-2"></i></div>
             </div>
         </div>
 
-        <!-- 3. โมดูล เมนูใช้งาน (ทำเหมือนตัวอย่างรูปที่ 1) -->
+        <!-- 3. โมดูล เมนูใช้งาน -->
         <div>
             <h2 class="font-bold text-gray-800 mb-3 px-1 text-lg">เมนูใช้งาน</h2>
             <div class="grid grid-cols-2 gap-4">
@@ -123,14 +123,14 @@
                 </a>
 
                 <a href="budget-plan.html" class="bg-white p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between text-left outline-none">
-    <div>
-        <div class="w-10 h-10 rounded-full bg-fuchsia-100 text-fuchsia-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-            <i data-lucide="folder-search" class="w-5 h-5"></i>
-        </div>
-        <h4 class="font-bold text-gray-800 text-sm">พิจารณาแฟ้มงบฯ</h4>
-    </div>
-    <p class="text-[11px] text-gray-400 mt-2">ตรวจและปรับลดงบประมาณ</p>
-</a>
+                    <div>
+                        <div class="w-10 h-10 rounded-full bg-fuchsia-100 text-fuchsia-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <i data-lucide="folder-search" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-800 text-sm">พิจารณาแฟ้มงบฯ</h4>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-2">ตรวจและปรับลดงบประมาณ</p>
+                </a>
                 
                 <button onclick="openManageCampsModal()" class="bg-white p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between text-left outline-none">
                     <div>
@@ -141,6 +141,17 @@
                     </div>
                     <p class="text-[11px] text-gray-400 mt-2">สร้าง/สลับค่ายทำงาน</p>
                 </button>
+
+                <!-- 🌟 กล่องเมนู: จัดการผู้ใช้งาน -->
+                <a href="users.html" class="bg-white p-4 rounded-2xl shadow-sm border border-white hover:shadow-md transition-all group flex flex-col justify-between text-left outline-none">
+                    <div>
+                        <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <i data-lucide="users" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-800 text-sm">จัดการผู้ใช้งาน</h4>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-2">แก้ไขสิทธิ์และข้อมูลสมาชิก</p>
+                </a>
                 
                 <a href="proxy-request.html" class="col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-2xl shadow-sm border border-blue-100 hover:shadow-md transition-all group flex items-center gap-4">
                     <div class="w-12 h-12 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-md">
@@ -152,6 +163,7 @@
                     </div>
                 </a>
             </div>
+        </div>
 
         <!-- Modal รายละเอียดรายการ -->
         <div id="details-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -202,7 +214,6 @@
                     <input type="hidden" id="approve-actual-amount">
                     <input type="hidden" id="approve-mode">
 
-                    <!-- 🌟 เพิ่มช่องแก้ไขชื่อรายการตรงนี้ -->
                     <div class="mt-3 border-t border-gray-100 pt-3 mb-3">
                         <label class="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1"><i data-lucide="edit-3" class="w-3.5 h-3.5 text-orange-500"></i> ชื่อรายการ (แอดมินแก้ไขได้) <span class="text-red-500">*</span></label>
                         <input type="text" id="approve-purpose-input" required class="w-full border border-gray-200 bg-white rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-green-500 font-medium">
@@ -253,7 +264,7 @@
         </ul>
     </nav>
 
-    <!-- เมนูใช้งาน (Bottom Sheet) เรียงแนวตั้งเหมือนเดิม -->
+    <!-- เมนูใช้งาน (Bottom Sheet) -->
     <div id="admin-action-menu-overlay" class="hidden fixed inset-0 bg-black/20 backdrop-blur-[2px] z-[60] flex items-end justify-center">
         <div id="admin-action-menu-sheet" class="bg-white w-full max-w-lg rounded-t-3xl p-6 pt-4 space-y-3 shadow-2xl animate-[slideUp_0.25s_ease-out]">
             <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-2"></div>
@@ -291,17 +302,25 @@
                 </div>
             </button>
 
-            <a href="budget-plan.html" class="flex items-center gap-4 p-3 bg-fuchsia-50 rounded-2xl hover:bg-fuchsia-100 transition-colors">
-    <div class="w-10 h-10 rounded-full bg-fuchsia-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-        <i data-lucide="folder-search" class="w-5 h-5"></i>
-    </div>
-    <div>
-        <span class="font-bold text-fuchsia-900 block text-sm">พิจารณาแฟ้มงบฯ</span>
-        <span class="text-[11px] text-fuchsia-700/70 block">ตรวจและปรับลดรายการในแฟ้ม</span>
-    </div>
-</a>
+            <!-- 🌟 เพิ่มเมนูจัดการผู้ใช้งานใน Bottom Sheet ตรงนี้ -->
+            <a href="users.html" class="flex items-center gap-4 p-3 bg-emerald-50 rounded-2xl hover:bg-emerald-100 transition-colors">
+                <div class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm"><i data-lucide="users" class="w-5 h-5"></i></div>
+                <div>
+                    <span class="font-bold text-emerald-900 block text-sm">จัดการผู้ใช้งาน</span>
+                    <span class="text-[11px] text-emerald-700/70 block">แก้ไขสิทธิ์ สังกัดฝ่าย และข้อมูลโปรไฟล์ของสมาชิก</span>
+                </div>
+            </a>
 
-            <!-- เพิ่มเมนู: ทำรายการเบิกแทนใน Bottom Sheet -->
+            <a href="budget-plan.html" class="flex items-center gap-4 p-3 bg-fuchsia-50 rounded-2xl hover:bg-fuchsia-100 transition-colors">
+                <div class="w-10 h-10 rounded-full bg-fuchsia-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <i data-lucide="folder-search" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <span class="font-bold text-fuchsia-900 block text-sm">พิจารณาแฟ้มงบฯ</span>
+                    <span class="text-[11px] text-fuchsia-700/70 block">ตรวจและปรับลดรายการในแฟ้ม</span>
+                </div>
+            </a>
+
             <a href="proxy-request.html" class="flex items-center gap-4 p-3 bg-blue-50 rounded-2xl hover:bg-blue-100 transition-colors">
                 <div class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0 shadow-sm"><i data-lucide="user-plus" class="w-5 h-5"></i></div>
                 <div>

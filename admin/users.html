@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ARSATU NEXT - จัดการผู้ใช้งาน</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-gray-50 text-gray-800 pb-20">
+
+    <!-- Header -->
+    <header class="bg-white px-5 py-4 shadow-sm flex items-center gap-3 sticky top-0 z-50">
+        <a href="dashboard.html" class="p-2 text-gray-400 hover:text-emerald-600 rounded-full bg-gray-50 transition-colors">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+        <h1 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <i data-lucide="users" class="text-emerald-600 w-5 h-5"></i> จัดการผู้ใช้งาน
+        </h1>
+    </header>
+
+    <main class="p-5 max-w-3xl mx-auto space-y-4">
+        <!-- สถิติเบื้องต้น -->
+        <div class="grid grid-cols-2 gap-3 mb-2">
+            <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">แอดมิน</p>
+                    <p class="text-2xl font-extrabold text-emerald-600" id="stat-admins">0</p>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
+                    <i data-lucide="shield-check" class="w-5 h-5"></i>
+                </div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">สมาชิกทั้งหมด</p>
+                    <p class="text-2xl font-extrabold text-blue-600" id="stat-total">0</p>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                    <i data-lucide="users" class="w-5 h-5"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- ค้นหาและตัวกรอง -->
+        <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i data-lucide="search" class="w-4 h-4 text-gray-400"></i>
+                </div>
+                <input type="text" id="search-input" placeholder="ค้นหาชื่อผู้ใช้งาน..." class="w-full border border-gray-200 bg-gray-50 rounded-xl py-2.5 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
+            </div>
+            <div class="flex gap-2">
+                <select id="role-filter" class="flex-1 border border-gray-200 bg-gray-50 rounded-xl p-2.5 text-xs font-bold text-gray-600 outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="all">ทุกสิทธิ์การใช้งาน</option>
+                    <option value="admin">เฉพาะแอดมิน</option>
+                    <option value="member">เฉพาะสมาชิก</option>
+                </select>
+                <select id="dept-filter" class="flex-1 border border-gray-200 bg-gray-50 rounded-xl p-2.5 text-xs font-bold text-gray-600 outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="all">ทุกฝ่าย</option>
+                    <option value="ส่วนกลาง">ส่วนกลาง</option>
+                    <option value="อำนวยการ (ประธาน/ รองประธาน)">อำนวยการ (ประธาน/ รองประธาน)</option>
+                    <option value="เลขานุการ">เลขานุการ</option>
+                    <option value="เหรัญญิก">เหรัญญิก</option>
+                    <option value="โครงงาน">โครงงาน</option>
+                    <option value="อุปกรณ์">อุปกรณ์</option>
+                    <option value="สถานที่">สถานที่</option>
+                    <option value="สวัสดิการ">สวัสดิการ</option>
+                    <option value="สัมพันธ์ชาวบ้าน">สัมพันธ์ชาวบ้าน</option>
+                    <option value="PR">PR</option>
+                    <option value="สปอนเซอร์">สปอนเซอร์</option>
+                    <option value="ทะเบียน">ทะเบียน</option>
+                    <option value="สันทนาการ">สันทนาการ</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- รายชื่อผู้ใช้ -->
+        <div id="users-container" class="space-y-3">
+            <div class="text-center py-10 text-gray-400"><i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2"></i>กำลังโหลด...</div>
+        </div>
+    </main>
+
+    <!-- Modal แก้ไขผู้ใช้งาน -->
+    <div id="edit-user-modal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-sm flex flex-col shadow-2xl overflow-hidden animate-[slideUp_0.2s_ease-out]">
+            <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2"><i data-lucide="user-cog" class="w-5 h-5 text-emerald-600"></i> แก้ไขข้อมูลผู้ใช้</h3>
+                <button type="button" onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 bg-white p-1 rounded-lg shadow-sm"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            
+            <form id="edit-user-form" class="p-5 space-y-4">
+                <input type="hidden" id="edit-user-id">
+                
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">ชื่อ-นามสกุล</label>
+                    <input type="text" id="edit-full-name" required class="w-full border border-gray-200 bg-white rounded-xl p-3 outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">ฝ่าย (Department)</label>
+                    <select id="edit-department" required class="w-full border border-gray-200 bg-white rounded-xl p-3 outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm">
+                        <option value="ส่วนกลาง">ส่วนกลาง</option>
+                        <option value="อำนวยการ (ประธาน/ รองประธาน)">อำนวยการ (ประธาน/ รองประธาน)</option>
+                        <option value="เลขานุการ">เลขานุการ</option>
+                        <option value="เหรัญญิก">เหรัญญิก</option>
+                        <option value="โครงงาน">โครงงาน</option>
+                        <option value="อุปกรณ์">อุปกรณ์</option>
+                        <option value="สถานที่">สถานที่</option>
+                        <option value="สวัสดิการ">สวัสดิการ</option>
+                        <option value="สัมพันธ์ชาวบ้าน">สัมพันธ์ชาวบ้าน</option>
+                        <option value="PR">PR</option>
+                        <option value="สปอนเซอร์">สปอนเซอร์</option>
+                        <option value="ทะเบียน">ทะเบียน</option>
+                        <option value="สันทนาการ">สันทนาการ</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">สิทธิ์การใช้งาน (Role)</label>
+                    <select id="edit-role" required class="w-full border border-gray-200 bg-white rounded-xl p-3 outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm">
+                        <option value="member">สมาชิกทั่วไป (Member)</option>
+                        <option value="admin">ผู้ดูแลระบบ/เหรัญญิก (Admin)</option>
+                    </select>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" id="btn-save-user" class="w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-md hover:bg-emerald-700 transition-colors text-sm">
+                        บันทึกข้อมูล
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/admin-users.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
