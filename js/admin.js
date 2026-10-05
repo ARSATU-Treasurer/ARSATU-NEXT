@@ -584,63 +584,161 @@ async function editCampName(campId, currentName, currentYear) {
 }
 
 window.deleteCamp = async function(campId, campName) {
-    // 1. แจ้งเตือนและโหลด Backup ข้อมูล
+    // 0. ดึงข้อมูลล่วงหน้าเพื่อหา URL รูปภาพและเตรียม Backup
+    Swal.fire({ title: 'กำลังเตรียมข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    
+    let clearances = [], transactions = [], budgets = [], clearance_items = [], budget_items = [];
+    let allUrls = [];
+    let allFilePaths = [];
+    
+    try {
+        const [resClearances, resTrans, resBudgets] = await Promise.all([
+            supabaseClient.from('clearances').select('*').eq('camp_id', campId),
+            supabaseClient.from('transactions').select('*').eq('camp_id', campId),
+            supabaseClient.from('budget_requests').select('*').eq('camp_id', campId)
+        ]);
+        clearances = resClearances.data || [];
+        transactions = resTrans.data || [];
+        budgets = resBudgets.data || [];
+
+        // ตัวแปรสำหรับเช็คว่าเป็น URL ของรูปใน Storage ระบบเราหรือไม่ (กรองของ Google Drive ออก)
+        const baseUrl = supabaseClient.storage.from('receipts').getPublicUrl('').data.publicUrl;
+
+        if (clearances.length > 0) {
+            const { data: cItems } = await supabaseClient.from('clearance_items').select('*').in('clearance_id', clearances.map(c => c.id));
+            clearance_items = cItems || [];
+
+            // ค้นหา URL รูปภาพจากทุกฟิลด์
+            clearances.forEach(c => {
+                const extract = (val) => {
+                    if (!val) return;
+                    try {
+                        const parsed = JSON.parse(val);
+                        if (Array.isArray(parsed)) {
+                            parsed.forEach(url => {
+                                if (url && typeof url === 'string' && url.includes(baseUrl)) {
+                                    allUrls.push(url);
+                                    allFilePaths.push(url.split(baseUrl)[1].replace(/^\//, '')); // เอาเฉพาะ path ภายใน
+                                }
+                            });
+                        }
+                    } catch(e) {
+                        if (typeof val === 'string' && val.includes(baseUrl)) {
+                            allUrls.push(val);
+                            allFilePaths.push(val.split(baseUrl)[1].replace(/^\//, ''));
+                        }
+                    }
+                };
+                extract(c.receipt_image_url);
+                extract(c.advance_slip_url);
+                extract(c.refund_slip_url);
+                extract(c.reimburse_slip_url);
+            });
+        }
+
+        if (budgets.length > 0) {
+            const { data: bItems } = await supabaseClient.from('budget_items').select('*').in('request_id', budgets.map(b => b.id));
+            budget_items = bItems || [];
+        }
+    } catch (error) {
+        Swal.fire('ข้อผิดพลาด', 'ไม่สามารถเตรียมข้อมูลได้: ' + error.message, 'error');
+        return;
+    }
+
+    Swal.close();
+
+    // ขั้นตอนที่ 1: แจ้งเตือนและโหลด Backup ข้อมูล Text
     const step1 = await Swal.fire({
-        title: 'ขั้นตอนที่ 1: สำรองข้อมูล (Backup)',
-        html: `ระบบจะดาวน์โหลดข้อมูลของค่าย <b>${campName}</b> เป็นไฟล์ JSON เพื่อเก็บไว้ตรวจสอบก่อนทำการลบอย่างถาวร`,
+        title: 'ขั้นตอนที่ 1: สำรอง Database',
+        html: `ระบบจะดาวน์โหลดข้อมูลตัวอักษรของ <b>${campName}</b> เป็นไฟล์ JSON`,
         icon: 'info',
         showCancelButton: true,
         confirmButtonColor: '#3b82f6',
-        confirmButtonText: 'ดาวน์โหลด Backup',
-        cancelButtonText: 'ยกเลิก',
-        showLoaderOnConfirm: true,
-        preConfirm: async () => {
-            try {
-                // ดึงข้อมูลหลักที่เกี่ยวข้องกับค่าย
-                const { data: clearances } = await supabaseClient.from('clearances').select('*').eq('camp_id', campId);
-                const { data: transactions } = await supabaseClient.from('transactions').select('*').eq('camp_id', campId);
-                const { data: budgets } = await supabaseClient.from('budget_requests').select('*').eq('camp_id', campId);
-                
-                // ดึงข้อมูลรายการย่อย (Items) เพื่อให้ Backup สมบูรณ์แบบ
-                let clearance_items = [];
-                if (clearances && clearances.length > 0) {
-                    const clearanceIds = clearances.map(c => c.id);
-                    const { data } = await supabaseClient.from('clearance_items').select('*').in('clearance_id', clearanceIds);
-                    clearance_items = data || [];
-                }
-
-                let budget_items = [];
-                if (budgets && budgets.length > 0) {
-                    const budgetIds = budgets.map(b => b.id);
-                    const { data } = await supabaseClient.from('budget_items').select('*').in('request_id', budgetIds);
-                    budget_items = data || [];
-                }
-
-                // สร้างไฟล์ JSON และสั่งดาวน์โหลด
-                const backupData = JSON.stringify({ clearances, clearance_items, transactions, budgets, budget_items }, null, 2);
-                const blob = new Blob([backupData], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                // ชื่อไฟล์แบบถูกต้อง
-                a.download = `backup_${campName}_${new Date().toISOString().split('T')[0]}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                return true;
-            } catch (error) {
-                Swal.showValidationMessage(`เกิดข้อผิดพลาด: ${error.message}`);
-            }
-        }
+        confirmButtonText: 'ดาวน์โหลด JSON',
+        cancelButtonText: 'ยกเลิก'
     });
 
     if (!step1.isConfirmed) return;
 
-    // 2. ยืนยันการลบข้อมูลผ่าน RPC
-    const step2 = await Swal.fire({
+    // สั่งดาวน์โหลด JSON
+    const backupData = JSON.stringify({ clearances, clearance_items, transactions, budgets, budget_items }, null, 2);
+    const blob = new Blob([backupData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `backup_${campName}_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    // ขั้นตอนที่ 2: โหลดไฟล์รูปภาพ (ถ้ามี)
+    if (allUrls.length > 0) {
+        const step2 = await Swal.fire({
+            title: 'ขั้นตอนที่ 2: สำรองรูปภาพ',
+            html: `พบไฟล์รูปภาพและสลิป <b>${allUrls.length}</b> ไฟล์<br><span class="text-xs text-red-500">* หากกดดาวน์โหลด ระบบจะรวมเป็นไฟล์ .zip ให้ (อาจใช้เวลาโหลดสักครู่)</span>`,
+            icon: 'info',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonColor: '#10b981',
+            denyButtonColor: '#9ca3af',
+            confirmButtonText: 'ดาวน์โหลดรูป (.zip)',
+            denyButtonText: 'ข้ามขั้นตอนนี้ไป',
+            cancelButtonText: 'ยกเลิกทั้งหมด',
+            showLoaderOnConfirm: true,
+            preConfirm: async () => {
+                try {
+                    // เรียกไลบรารี JSZip อัตโนมัติ
+                    if (typeof JSZip === 'undefined') {
+                        await new Promise((resolve, reject) => {
+                            const script = document.createElement('script');
+                            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                            script.onload = resolve;
+                            script.onerror = reject;
+                            document.head.appendChild(script);
+                        });
+                    }
+                    const zip = new JSZip();
+                    let count = 1;
+                    // โหลดรูปภาพทีละรูปใส่ Zip
+                    for (let fileUrl of allUrls) {
+                        try {
+                            const response = await fetch(fileUrl);
+                            const blob = await response.blob();
+                            const filename = fileUrl.substring(fileUrl.lastIndexOf('/') + 1) || `file_${count}.png`;
+                            zip.file(`${count}_${filename}`, blob);
+                            count++;
+                        } catch (e) {
+                            console.error('Failed to download:', fileUrl);
+                        }
+                    }
+                    // สร้างและดาวน์โหลด Zip
+                    const zipBlob = await zip.generateAsync({ type: 'blob' });
+                    const zipUrl = URL.createObjectURL(zipBlob);
+                    const zipA = document.createElement('a');
+                    zipA.href = zipUrl;
+                    zipA.download = `images_${campName}_${new Date().toISOString().split('T')[0]}.zip`;
+                    document.body.appendChild(zipA);
+                    zipA.click();
+                    document.body.removeChild(zipA);
+                    URL.revokeObjectURL(zipUrl);
+                    return true;
+                } catch (error) {
+                    Swal.showValidationMessage(`ดาวน์โหลดล้มเหลว: ${error.message}`);
+                }
+            }
+        });
+
+        // ถ้ายกเลิก (คลิกนอกกรอบ หรือกดยกเลิก) ให้หยุดการทำงานทันที
+        if (step2.dismiss === Swal.DismissReason.cancel || step2.dismiss === Swal.DismissReason.backdrop || step2.dismiss === Swal.DismissReason.esc) {
+            return;
+        }
+    }
+
+    // ขั้นตอนที่ 3: ลบข้อมูลค่ายและรูปภาพ
+    const step3 = await Swal.fire({
         title: 'ขั้นตอนสุดท้าย: ลบข้อมูลค่าย',
-        html: `ระบบจะลบข้อมูลค่าย <b>${campName}</b> ออกจากฐานข้อมูลทั้งหมด<br><br><b class="text-emerald-600">ยอดเงินในบัญชีและกองทุนจะยังคงอยู่เท่าเดิม</b><br><span class="text-red-500 text-xs">*หมายเหตุ: คุณต้องไปลบรูปภาพใน Supabase Storage (โฟลเดอร์ receipts/donations) แยกต่างหากเพื่อคืนพื้นที่</span>`,
+        html: `ระบบจะทำการ:<br>1. ลบไฟล์รูปภาพ <b>${allFilePaths.length}</b> ไฟล์ออกจาก Storage<br>2. ลบข้อมูลของค่าย <b>${campName}</b> ออกจากฐานข้อมูล<br><br><b class="text-emerald-600">ยอดเงินในบัญชีและกองทุนจะยังคงอยู่เท่าเดิม</b>`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc2626',
@@ -649,7 +747,15 @@ window.deleteCamp = async function(campId, campName) {
         showLoaderOnConfirm: true,
         preConfirm: async () => {
             try {
-                // เรียกใช้ฟังก์ชันที่สร้างไว้ใน Database (ต้องรัน SQL สร้าง archive_camp_safe ไว้ก่อนแล้ว)
+                // 1. ลบไฟล์รูปภาพแบบแบ่ง Chunk (ทีละ 50 ไฟล์) เพื่อป้องกัน API Limit ของ Supabase
+                const chunkSize = 50;
+                for (let i = 0; i < allFilePaths.length; i += chunkSize) {
+                    const chunk = allFilePaths.slice(i, i + chunkSize);
+                    const { error: storageError } = await supabaseClient.storage.from('receipts').remove(chunk);
+                    if (storageError) console.error("Storage delete error:", storageError);
+                }
+
+                // 2. เรียกใช้ RPC Function ลบข้อมูลจาก Database
                 const { error } = await supabaseClient.rpc('archive_camp_safe', { 
                     target_camp_id: campId 
                 });
@@ -661,12 +767,11 @@ window.deleteCamp = async function(campId, campName) {
         }
     });
 
-    if (step2.isConfirmed) {
-        Swal.fire('เสร็จสิ้น!', 'ลบข้อมูลเรียบร้อยแล้ว', 'success');
+    if (step3.isConfirmed) {
+        Swal.fire('เสร็จสิ้น!', 'ลบข้อมูลและคืนพื้นที่ Storage เรียบร้อยแล้ว', 'success');
         fetchCampsList(); // รีเฟรชหน้าจอ
     }
 };
-
 
 async function setActiveCamp(targetId, campName) {
     const result = await Swal.fire({
