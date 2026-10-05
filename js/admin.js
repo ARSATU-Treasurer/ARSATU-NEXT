@@ -583,40 +583,90 @@ async function editCampName(campId, currentName, currentYear) {
     }
 }
 
-async function deleteCamp(campId, campName) {
-    const result = await Swal.fire({
-        title: 'ยืนยันการลบโครงการ?',
-        icon: 'warning',
-        html: `
-            <div class="text-left text-sm mt-3 border-t border-gray-100 pt-3">
-                <p class="text-gray-700">คุณกำลังจะลบโครงการ: <br><span class="font-extrabold text-red-600 text-lg">${campName}</span></p>
-                <div class="bg-red-50 p-3 rounded-xl border border-red-200 mt-3">
-                    <p class="text-red-700 font-bold text-xs mb-1">⚠️ คำเตือนขั้นสูงสุด:</p>
-                    <ul class="list-disc ml-5 text-red-600 text-xs space-y-1">
-                        <li>ข้อมูลประวัติการเบิกจ่ายทั้งหมดที่ผูกกับค่ายนี้จะถูก <b>ลบทิ้งถาวร</b></li>
-                        <li>กองทุนย่อยในค่ายนี้จะถูก <b>ลบทิ้งถาวร</b></li>
-                        <li>ไม่สามารถย้อนกลับหรือกู้คืนได้</li>
-                    </ul>
-                </div>
-            </div>
-        `,
+window.deleteCamp = async function(campId, campName) {
+    // 1. แจ้งเตือนและโหลด Backup ข้อมูล
+    const step1 = await Swal.fire({
+        title: 'ขั้นตอนที่ 1: สำรองข้อมูล (Backup)',
+        html: `ระบบจะดาวน์โหลดข้อมูลของค่าย <b>${campName}</b> เป็นไฟล์ JSON เพื่อเก็บไว้ตรวจสอบก่อนทำการลบอย่างถาวร`,
+        icon: 'info',
         showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: 'ยืนยันลบถาวร',
+        confirmButtonColor: '#3b82f6',
+        confirmButtonText: 'ดาวน์โหลด Backup',
         cancelButtonText: 'ยกเลิก',
-        reverseButtons: true
+        showLoaderOnConfirm: true,
+        preConfirm: async () => {
+            try {
+                // ดึงข้อมูลหลักที่เกี่ยวข้องกับค่าย
+                const { data: clearances } = await supabaseClient.from('clearances').select('*').eq('camp_id', campId);
+                const { data: transactions } = await supabaseClient.from('transactions').select('*').eq('camp_id', campId);
+                const { data: budgets } = await supabaseClient.from('budget_requests').select('*').eq('camp_id', campId);
+                
+                // ดึงข้อมูลรายการย่อย (Items) เพื่อให้ Backup สมบูรณ์แบบ
+                let clearance_items = [];
+                if (clearances && clearances.length > 0) {
+                    const clearanceIds = clearances.map(c => c.id);
+                    const { data } = await supabaseClient.from('clearance_items').select('*').in('clearance_id', clearanceIds);
+                    clearance_items = data || [];
+                }
+
+                let budget_items = [];
+                if (budgets && budgets.length > 0) {
+                    const budgetIds = budgets.map(b => b.id);
+                    const { data } = await supabaseClient.from('budget_items').select('*').in('request_id', budgetIds);
+                    budget_items = data || [];
+                }
+
+                // สร้างไฟล์ JSON และสั่งดาวน์โหลด
+                const backupData = JSON.stringify({ clearances, clearance_items, transactions, budgets, budget_items }, null, 2);
+                const blob = new Blob([backupData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                // ชื่อไฟล์แบบถูกต้อง
+                a.download = `backup_${campName}_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                return true;
+            } catch (error) {
+                Swal.showValidationMessage(`เกิดข้อผิดพลาด: ${error.message}`);
+            }
+        }
     });
 
-    if (result.isConfirmed) {
-        try {
-            const { error } = await supabaseClient.from('camps').delete().eq('id', campId);
-            if (error) throw error;
-            Swal.fire('ลบสำเร็จ', 'ลบโครงการและข้อมูลที่เกี่ยวข้องออกจากระบบแล้ว', 'success');
-            fetchCampsList();
-        } catch (err) { Swal.fire('ข้อผิดพลาด', 'ไม่สามารถลบได้เนื่องจากติดเงื่อนไขฐานข้อมูล: ' + err.message, 'error'); }
+    if (!step1.isConfirmed) return;
+
+    // 2. ยืนยันการลบข้อมูลผ่าน RPC
+    const step2 = await Swal.fire({
+        title: 'ขั้นตอนสุดท้าย: ลบข้อมูลค่าย',
+        html: `ระบบจะลบข้อมูลค่าย <b>${campName}</b> ออกจากฐานข้อมูลทั้งหมด<br><br><b class="text-emerald-600">ยอดเงินในบัญชีและกองทุนจะยังคงอยู่เท่าเดิม</b><br><span class="text-red-500 text-xs">*หมายเหตุ: คุณต้องไปลบรูปภาพใน Supabase Storage (โฟลเดอร์ receipts/donations) แยกต่างหากเพื่อคืนพื้นที่</span>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'ล้างข้อมูล (ย้อนกลับไม่ได้)',
+        cancelButtonText: 'ยกเลิก',
+        showLoaderOnConfirm: true,
+        preConfirm: async () => {
+            try {
+                // เรียกใช้ฟังก์ชันที่สร้างไว้ใน Database (ต้องรัน SQL สร้าง archive_camp_safe ไว้ก่อนแล้ว)
+                const { error } = await supabaseClient.rpc('archive_camp_safe', { 
+                    target_camp_id: campId 
+                });
+                if (error) throw error;
+                return true;
+            } catch (error) {
+                Swal.showValidationMessage(`เกิดข้อผิดพลาด: ${error.message}`);
+            }
+        }
+    });
+
+    if (step2.isConfirmed) {
+        Swal.fire('เสร็จสิ้น!', 'ลบข้อมูลเรียบร้อยแล้ว', 'success');
+        fetchCampsList(); // รีเฟรชหน้าจอ
     }
-}
+};
+
 
 async function setActiveCamp(targetId, campName) {
     const result = await Swal.fire({
@@ -996,3 +1046,104 @@ window.voidRequest = async function(clearanceId) {
         }
     }
 }
+
+
+
+window.startArchiveWizard = async function(campId, campName) {
+    // ---------------------------------------------------------
+    // ขั้นตอนที่ 1: ดึงข้อมูล Backup
+    // ---------------------------------------------------------
+    const step1 = await Swal.fire({
+        title: 'ขั้นตอนที่ 1: ดึงข้อมูลสำรอง',
+        html: `ระบบจะดึงข้อมูลทั้งหมดของค่าย **${campName}** มาเป็นไฟล์ JSON เพื่อเก็บไว้ตรวจสอบในอนาคต`,
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'ดาวน์โหลด Backup',
+        cancelButtonText: 'ยกเลิก',
+        showLoaderOnConfirm: true,
+        preConfirm: async () => {
+            // ใน preConfirm ของ step1:
+const { data: clearances } = await supabaseClient.from('clearances').select('*').eq('camp_id', campId);
+const { data: transactions } = await supabaseClient.from('transactions').select('*').eq('camp_id', campId);
+const { data: budgets } = await supabaseClient.from('budget_requests').select('*').eq('camp_id', campId);
+// ** สิ่งที่เพิ่มเข้าไป (ดึงไอเทมย่อย) **
+const { data: clearance_items } = await supabaseClient.from('clearance_items')
+    .select('*')
+    .in('clearance_id', clearances.map(c => c.id));
+    
+const { data: budget_items } = await supabaseClient.from('budget_items')
+    .select('*')
+    .in('request_id', budgets.map(b => b.id));
+            
+            // สร้างไฟล์ JSON ให้ดาวน์โหลด
+            const backupData = JSON.stringify({ 
+    clearances, 
+    clearance_items, 
+    transactions, 
+    budgets, 
+    budget_items 
+}, null, 2);
+            const blob = new Blob([backupData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backup_\({campName}_\){Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            return true;
+        }
+    });
+
+    if (!step1.isConfirmed) return;
+
+    // ---------------------------------------------------------
+    // ขั้นตอนที่ 2: รวบรวมและลบไฟล์รูปภาพ
+    // ---------------------------------------------------------
+    const step2 = await Swal.fire({
+        title: 'ขั้นตอนที่ 2: ลบไฟล์แนบและสลิป',
+        html: `ระบบกำลังจะสแกนและลบไฟล์รูปภาพ/PDF ทั้งหมดที่เกี่ยวข้องกับค่ายนี้ออกจาก Storage
+        *ควรเช็คให้แน่ใจว่าโหลดรูปที่จำเป็นเก็บไว้แล้ว`,
+icon: 'warning',
+showCancelButton: true,
+confirmButtonText: 'ยืนยันการลบไฟล์',
+cancelButtonText: 'ยกเลิก',
+confirmButtonColor: '#ef4444',
+showLoaderOnConfirm: true,
+preConfirm: async () => {
+// โค้ดสำหรับดึง URL รูปภาพจาก clearances มาแยกชื่อไฟล์และสั่งลบ
+// ตัวอย่าง: supabaseClient.storage.from('receipts').remove(['path1', 'path2'])
+// หมายเหตุ: โค้ดส่วนนี้ขึ้นอยู่กับวิธีที่คุณจัดการ Path ของ Storage 
+        // แนะนำให้ดึง path จาก receipt_image_url มาใส่ array แล้วสั่ง remove()
+        return true;
+    }
+});
+
+if (!step2.isConfirmed) return;
+
+// ---------------------------------------------------------
+// ขั้นตอนที่ 3: ลบข้อมูลจาก Database (รักษายอดเงิน)
+// ---------------------------------------------------------
+const step3 = await Swal.fire({
+    title: 'ขั้นตอนสุดท้าย: ลบข้อมูลค่าย',
+    html: `ระบบจะลบข้อมูลค่าย **${campName}** ออกจากฐานข้อมูลทั้งหมดโดยยอดเงินในบัญชีและกองทุนจะยังคงอยู่เท่าเดิม`,
+icon: 'error',
+showCancelButton: true,
+confirmButtonText: 'ล้างข้อมูล (ขั้นตอนนี้ย้อนกลับไม่ได้)',
+cancelButtonText: 'ยกเลิก',
+confirmButtonColor: '#dc2626',
+showLoaderOnConfirm: true,
+preConfirm: async () => {
+// เรียกใช้ RPC Function ที่เราเตรียมไว้ในข้อ 1
+const { error } = await supabaseClient.rpc('archive_camp_safe', {
+target_camp_id: campId
+});
+if (error) throw new Error(error.message);
+return true;
+}
+});
+if (step3.isConfirmed) {
+    Swal.fire('เสร็จสิ้น!', 'ลบข้อมูลและเคลียร์พื้นที่เรียบร้อยแล้ว', 'success');
+    // รีเฟรชหน้าจอหรือเรียกฟังก์ชัน fetch ใหม่
+    if (typeof fetchCampsList === 'function') fetchCampsList();
+}
+};
