@@ -136,21 +136,20 @@ function renderRequests() {
                 const discountText = item.discount > 0 ? `<span class="text-red-500 ml-1 bg-red-50 px-1 rounded">-ลด ${parseFloat(item.discount).toLocaleString()} ฿</span>` : '';
                 
                 // ไฮไลท์หมายเหตุแอดมินให้ชัดขึ้น
-                const remarkHtml = item.remark ? `<p class="text-[10px] mt-1.5 p-1.5 rounded-lg ${isAdminEdited ? 'bg-red-50 text-red-700 border border-red-100 font-bold' : 'bg-gray-50 text-gray-500'}">💬 ${item.remark.replace(/\n/g, '<br>')}</p>` : '';
-
+                const remarkHtml = item.remark ? `<p class="text-[10px] mt-1.5 p-1.5 rounded-lg ${isAdminEdited ? 'bg-red-50 text-red-700 border border-red-100 font-bold' : 'bg-gray-50 text-gray-500'}">หมายเหตุจากแอดมิน: ${item.remark.replace(/\n/g, '<br>')}</p>` : '';
                 return `
                 <div class="flex justify-between items-center py-2 border-b border-gray-50 last:border-0 ${isDenied ? 'opacity-50 bg-gray-50 p-2 rounded-lg' : ''}">
                     <div class="flex-1 pr-2">
                         <p class="text-sm font-bold text-gray-700 flex items-center gap-1">
                             <span class="text-[10px] bg-pink-50 text-pink-600 border border-pink-100 px-1.5 rounded flex items-center gap-0.5"><i data-lucide="heart" class="w-2.5 h-2.5 fill-current"></i> ${item.priority_level}</span>
-                            ${isDenied ? `<s class="text-red-500">${item.item_name}</s> <span class="text-[9px] text-red-600 bg-red-100 px-1 rounded border border-red-200">โดนตัด</span>` : item.item_name}
+                            ${isDenied ? `<s class="text-red-500">${item.item_name}</s> <span class="text-[9px] text-red-600 bg-red-100 px-1 rounded border border-red-200">ไม่อนุมัติ</span>` : item.item_name}
                         </p>
                         <p class="text-[10px] text-gray-500 mt-0.5">${item.quantity} x ${parseFloat(item.unit_price).toLocaleString()} ฿ ${discountText}</p>
                         ${remarkHtml}
                     </div>
                     <div class="text-right shrink-0 ml-2 flex flex-col items-end">
                         <p class="text-sm font-extrabold text-gray-800">${parseFloat(item.total_price).toLocaleString()} ฿</p>
-                        ${req.status === 'draft' && hasAccess ? `<button onclick="deleteItem('${item.id}')" class="text-[10px] text-red-500 hover:underline mt-1 bg-red-50 px-2 py-0.5 rounded-md">ลบทิ้ง</button>` : ''}
+                        ${req.status === 'draft' && hasAccess ? `<div class="flex gap-1 mt-1"><button onclick="editItem('${item.id}', '${req.id}')" class="text-[10px] text-blue-600 hover:underline bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">แก้ไข</button><button onclick="deleteItem('${item.id}')" class="text-[10px] text-red-500 hover:underline bg-red-50 border border-red-100 px-2 py-0.5 rounded-md">ลบทิ้ง</button></div>` : ''}
                     </div>
                 </div>`;
             }).join('');
@@ -461,7 +460,7 @@ function calcTotal() {
     const price = parseFloat(document.getElementById('item-unit-price').value) || 0;
     const discount = parseFloat(document.getElementById('item-discount').value) || 0;
     
-    // 🌟 คำนวณราคาสุทธิ หักส่วนลดแล้ว (ห้ามติดลบ)
+    // หักส่วนลดรวม
     let total = (qty * price) - discount;
     if (total < 0) total = 0;
     
@@ -473,19 +472,51 @@ function openItemModal(reqId) {
     document.getElementById('item-form').reset();
     document.getElementById('item-id').value = '';
     document.getElementById('parent-request-id').value = reqId;
-    document.getElementById('item-discount').value = 0; // เคลียร์ส่วนลด
+    document.getElementById('item-discount').value = 0; // รีเซ็ตส่วนลด
+    
+    const titleEl = document.getElementById('item-modal-title');
+    if(titleEl) titleEl.innerText = 'เพิ่มรายการใหม่';
+    
     setHeartPriority(3);
     calcTotal();
     document.getElementById('item-modal').classList.remove('hidden');
 }
 
-function closeItemModal() { document.getElementById('item-modal').classList.add('hidden'); }
+window.editItem = function(itemId, reqId) {
+    const req = allRequests.find(r => r.id === reqId);
+    if (!req) return;
+    const item = req.budget_items.find(i => i.id === itemId);
+    if (!item) return;
+
+    document.getElementById('item-form').reset();
+    document.getElementById('item-id').value = item.id;
+    document.getElementById('parent-request-id').value = reqId;
+    
+    document.getElementById('item-name').value = item.item_name;
+    document.getElementById('item-quantity').value = item.quantity;
+    document.getElementById('item-unit-price').value = item.unit_price;
+    document.getElementById('item-discount').value = item.discount || 0;
+    document.getElementById('item-remark').value = item.remark || '';
+    
+    const titleEl = document.getElementById('item-modal-title');
+    if(titleEl) titleEl.innerText = 'แก้ไขรายการ';
+    
+    setHeartPriority(item.priority_level || 3);
+    calcTotal();
+    
+    document.getElementById('item-modal').classList.remove('hidden');
+};
+
+function closeItemModal() {
+    document.getElementById('item-modal').classList.add('hidden');
+}
 
 async function handleSaveItem(e) {
     e.preventDefault();
     const reqId = document.getElementById('parent-request-id').value;
+    const itemId = document.getElementById('item-id').value;
     
-    // 🌟 ยิง Payload ตัวใหม่ มีคอลัมน์ส่วนลด
+    // สร้าง Payload ข้อมูลที่ต้องการเซฟ
     const payload = {
         request_id: reqId,
         item_name: document.getElementById('item-name').value.trim(),
@@ -498,9 +529,25 @@ async function handleSaveItem(e) {
         item_status: 'pending'
     };
 
-    const { error } = await supabaseClient.from('budget_items').insert([payload]);
-    if (error) return Swal.fire('Error', error.message, 'error');
+    Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+
+    let error;
+    if (itemId) {
+        // อัปเดตรายการเดิม
+        const res = await supabaseClient.from('budget_items').update(payload).eq('id', itemId);
+        error = res.error;
+    } else {
+        // เพิ่มรายการใหม่
+        const res = await supabaseClient.from('budget_items').insert([payload]);
+        error = res.error;
+    }
+
+    if (error) {
+        Swal.fire('Error', error.message, 'error');
+        return;
+    }
     
+    Swal.close();
     closeItemModal();
     fetchBudgetRequests();
 }
