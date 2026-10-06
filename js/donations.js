@@ -62,7 +62,7 @@ async function loadEditData(id) {
 async function fetchDonationStats() {
     try {
         const { data: trans } = await supabaseClient.from('clearances').select('total_amount').eq('camp_id', currentCampId).eq('request_type', 'income').eq('status', 'cleared');
-        const { data: goalData } = await supabaseClient.from('donation_goals').select('goal_amount').eq('camp_id', currentCampId).maybesingle();
+        const { data: goalData } = await supabaseClient.from('donation_goals').select('goal_amount').eq('camp_id', currentCampId).maybeSingle();
 
         const total = trans ? trans.reduce((sum, t) => sum + parseFloat(t.total_amount), 0) : 0;
         const goal = goalData ? parseFloat(goalData.goal_amount) : 0;
