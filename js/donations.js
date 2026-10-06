@@ -54,7 +54,7 @@ async function handleDonationSubmit(e) {
     lucide.createIcons();
 
     try {
-        const file = document.getElementById('donation-slip').files[0];
+        const file = document.getElementById('don-slip').files[0];
         const ext = file.name.split('.').pop();
         const filePath = `donations/${Date.now()}.${ext}`;
         const { error: uploadError } = await supabaseClient.storage.from('receipts').upload(filePath, file);
