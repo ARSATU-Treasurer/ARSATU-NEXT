@@ -89,24 +89,48 @@ async function handleDonationSubmit(e) {
 async function fetchMyDonations() {
     const container = document.getElementById('my-donations-history');
     const { data: items } = await supabaseClient.from('clearances').select('*').eq('user_id', currentUser.id).eq('request_type', 'income').order('created_at', { ascending: false });
-
+    
     if (!items || items.length === 0) {
-        container.innerHTML = '<p class="text-center text-gray-400 py-4 text-xs">ยังไม่มีประวัติการส่งยอดเงินบริจาค</p>';
+        container.innerHTML = '<p class="text-center text-gray-400 py-4 text-xs">ยังไม่มีประวัติการแจ้งยอด</p>';
         return;
     }
+    
+    container.innerHTML = items.map(item => {
+        let statusBadge = '';
+        let amountColor = 'text-pink-600';
+        let borderClass = 'border-gray-100';
 
-    container.innerHTML = items.map(item => `
-        <div class="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center shadow-sm">
-            <div>
+        if (item.status === 'cleared') {
+            statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">เสร็จสิ้น</span>';
+        } else if (item.status === 'rejected') {
+            statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">ตีกลับ</span>';
+            amountColor = 'text-gray-400 line-through';
+            borderClass = 'border-red-100 bg-red-50/50';
+        } else {
+            statusBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 font-bold">รอตรวจสอบ</span>';
+        }
+
+        let reasonHtml = '';
+        if (item.status === 'rejected' && item.reject_reason) {
+            reasonHtml = `<p class="text-[10px] text-red-600 mt-1.5 bg-red-100/50 p-1.5 rounded inline-block"><i data-lucide="alert-circle" class="w-3 h-3 inline mb-0.5"></i> ${item.reject_reason}</p>`;
+        }
+
+        return `
+        <div class="bg-white p-4 rounded-xl border ${borderClass} flex justify-between items-start shadow-sm transition-all">
+            <div class="flex-1 pr-3">
                 <p class="text-xs font-bold text-gray-800">${item.purpose}</p>
                 <p class="text-[10px] text-gray-400">${new Date(item.created_at).toLocaleDateString('th-TH')}</p>
+                ${reasonHtml}
             </div>
-            <div class="text-right">
-                <p class="text-sm font-bold text-pink-600">+${parseFloat(item.total_amount).toLocaleString()} ฿</p>
-                <span class="text-[9px] px-1.5 py-0.5 rounded-full ${item.status === 'cleared' ? 'bg-green-100 text-green-700':'bg-orange-100 text-orange-700'}">${item.status === 'cleared' ? 'อนุมัติแล้ว':'รอตรวจสอบ'}</span>
+            <div class="text-right shrink-0 flex flex-col items-end gap-1.5">
+                <p class="text-sm font-bold ${amountColor}">+${parseFloat(item.total_amount).toLocaleString()} ฿</p>
+                ${statusBadge}
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
+    
+    lucide.createIcons();
 }
 
 function toggleActionMenu() {
