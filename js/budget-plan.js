@@ -158,19 +158,28 @@ function renderRequests() {
         }
 
         let actionBtn = '';
+        let exportBtnHtml = `<button onclick="exportBudgetExcel('${req.id}')" class="w-full mt-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold py-2 rounded-lg border border-blue-200 flex justify-center items-center gap-1 transition"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> ดาวน์โหลดข้อมูล (Excel)</button>`;
+
         if (req.status === 'draft' && hasAccess) {
             actionBtn = `
                 <div class="flex gap-2 mb-2">
                     <button onclick="openItemModal('${req.id}')" class="flex-1 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold py-2 rounded-lg border border-purple-200 flex justify-center items-center gap-1 transition"><i data-lucide="plus" class="w-3.5 h-3.5"></i> เพิ่มรายการ</button>
+                    <button onclick="triggerImportExcel('${req.id}')" class="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold py-2 rounded-lg border border-emerald-200 flex justify-center items-center gap-1 transition" title="นำเข้าข้อมูลจาก Excel"><i data-lucide="file-up" class="w-3.5 h-3.5"></i> นำเข้า</button>
                     ${isOwner || userProfile.role === 'admin' ? `<button onclick="openCollabModal('${req.id}')" class="bg-white hover:bg-gray-50 text-indigo-600 border border-indigo-200 px-3 rounded-lg flex items-center gap-1 transition shadow-sm text-[11px] font-bold" title="เพิ่มผู้ช่วย"><i data-lucide="user-plus" class="w-3.5 h-3.5"></i> ผู้ช่วย</button>` : ''}
                 </div>
                 <button onclick="submitRequest('${req.id}')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 rounded-lg shadow-sm flex justify-center items-center gap-1 transition"><i data-lucide="send" class="w-3.5 h-3.5"></i> ส่งแฟ้มตรวจ</button>
+                ${exportBtnHtml}
             `;
         } else if (req.status === 'pending' && hasAccess) {
-            actionBtn = `<button onclick="recallRequest('${req.id}')" class="w-full bg-orange-50 text-orange-600 text-xs font-bold py-2 rounded-lg border border-orange-100"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5 inline"></i> ดึงกลับมาแก้ไข (Recall)</button>`;
+            actionBtn = `
+                <button onclick="recallRequest('${req.id}')" class="w-full bg-orange-50 text-orange-600 text-xs font-bold py-2 rounded-lg border border-orange-100 flex justify-center items-center gap-1"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5 inline"></i> ดึงกลับมาแก้ไข (Recall)</button>
+                ${exportBtnHtml}
+            `;
+        } else {
+            actionBtn = exportBtnHtml;
         }
 
-        const collabBadge = req.co_worker_ids && req.co_worker_ids.length > 0 
+        const collabBadge = req.co_worker_ids && req.co_worker_ids.length > 0
             ? `<span class="text-[10px] text-indigo-500 bg-indigo-50 px-1.5 rounded-md flex items-center gap-1 border border-indigo-100"><i data-lucide="users" class="w-3 h-3"></i> +${req.co_worker_ids.length}</span>` 
             : '';
 
@@ -557,4 +566,154 @@ async function deleteItem(itemId) {
         await supabaseClient.from('budget_items').delete().eq('id', itemId);
         fetchBudgetRequests();
     }
+}
+
+// ==========================================
+// 📊 ระบบ Import / Export Excel
+// ==========================================
+window.exportBudgetExcel = function(reqId) {
+    const req = allRequests.find(r => r.id === reqId);
+    if (!req) return;
+
+    let total = 0, approved = 0, denied = 0, pending = 0;
+    const items = req.budget_items || [];
+
+    const wb = XLSX.utils.book_new();
+    const wsData = [];
+
+    // Header (แถวที่ 1: A-H และ J-K)
+    wsData.push(["ลำดับ", "รายการสิ่งของ", "ระดับความสำคัญ (1-5)", "จำนวน", "ราคา/หน่วย", "ส่วนลด", "ราคาสุทธิ", "หมายเหตุ", "", "สรุปยอดงบประมาณ", "จำนวนเงิน (บาท)"]);
+
+    // วนลูปข้อมูลเขียนลงคอลัมน์ A ถึง H
+    items.forEach((item, index) => {
+        const netPrice = parseFloat(item.total_price) || 0;
+        total += netPrice;
+        
+        if (item.item_status === 'approved') approved += netPrice;
+        else if (item.item_status === 'denied') denied += netPrice;
+        else pending += netPrice;
+
+        wsData.push([
+            index + 1,
+            item.item_name,
+            item.priority_level || 3,
+            item.quantity,
+            item.unit_price,
+            item.discount || 0,
+            netPrice,
+            item.remark || ''
+        ]);
+    });
+
+    // ตรวจสอบความยาวของแถวเพื่อเติมข้อมูลสรุปลงไปใน J และ K
+    // ถ้าแถวในระบบมีน้อยกว่า 4 แถว (แถวที่ 1-4) จะต้องเติมแถวว่างก่อน
+    for(let i = 1; i <= 4; i++) {
+        if (!wsData[i]) wsData[i] = [];
+        // สร้างช่องว่างให้ครบถึงคอลัมน์ I (Index 8)
+        while(wsData[i].length < 9) wsData[i].push("");
+    }
+
+    // เขียนข้อมูลสรุปลงใน J (Index 9) และ K (Index 10)
+    wsData[1][9] = "ยอดขอเบิกรวม";     wsData[1][10] = total;
+    wsData[2][9] = "ยอดที่อนุมัติ";     wsData[2][10] = approved;
+    wsData[3][9] = "ยอดที่ไม่อนุมัติ";    wsData[3][10] = denied;
+    wsData[4][9] = "ยอดรอตรวจสอบ";   wsData[4][10] = pending;
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // กำหนดความกว้างคอลัมน์ให้ดูสวยงาม
+    ws['!cols'] = [{wch: 5}, {wch: 30}, {wch: 20}, {wch: 10}, {wch: 15}, {wch: 10}, {wch: 15}, {wch: 30}, {wch: 5}, {wch: 20}, {wch: 15}];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Budget Plan");
+    XLSX.writeFile(wb, `งบประมาณ_${req.topic_name}.xlsx`);
+}
+
+window.triggerImportExcel = function(reqId) {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.xlsx, .xls';
+    fileInput.onchange = (e) => handleExcelImport(e, reqId);
+    fileInput.click();
+}
+
+window.handleExcelImport = function(event, reqId) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            
+            // อ่านข้อมูลเป็น Array ของ Array (เพื่อให้ตรงคอลัมน์ A=0, B=1, ...)
+            const rows = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+            const payloads = [];
+
+            // เริ่มอ่านที่แถว 2 (Index 1) เพื่อข้าม Header
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                if (!row || row.length === 0) continue;
+
+                const itemName = row[1]; // Column B (Index 1)
+                if (!itemName) continue; // ถ้าชื่อรายการว่าง ให้ข้าม
+
+                const priority = parseInt(row[2]) || 3;   // Column C
+                const qty = parseFloat(row[3]) || 0;      // Column D
+                const price = parseFloat(row[4]) || 0;    // Column E
+                const discount = parseFloat(row[5]) || 0; // Column F
+                const remark = row[7] || '';              // Column H
+
+                // คำนวณราคาสุทธิเอง เพื่อความชัวร์ (ไม่พึ่งช่อง G)
+                const netPrice = (qty * price) - discount;
+                const finalNet = netPrice > 0 ? netPrice : 0;
+
+                if (qty > 0 && price >= 0) {
+                    payloads.push({
+                        request_id: reqId,
+                        item_name: itemName.toString().trim(),
+                        priority_level: priority > 5 ? 5 : (priority < 1 ? 1 : priority),
+                        quantity: qty,
+                        unit_price: price,
+                        discount: discount,
+                        total_price: finalNet,
+                        remark: remark.toString().trim(),
+                        item_status: 'pending'
+                    });
+                }
+            }
+
+            if (payloads.length === 0) {
+                return Swal.fire('ไม่พบข้อมูล', 'ไม่พบรายการที่ถูกต้องในไฟล์ Excel (โปรดเช็คคอลัมน์ B-E)', 'warning');
+            }
+
+            const confirm = await Swal.fire({
+                title: 'ยืนยันการนำเข้าข้อมูล',
+                html: `พบข้อมูลทั้งหมด <b>${payloads.length}</b> รายการ<br><span class="text-xs text-red-500">*ระบบจะเพิ่มต่อท้ายรายการเดิมที่มีอยู่แล้ว</span>`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                confirmButtonText: 'นำเข้าข้อมูล',
+                cancelButtonText: 'ยกเลิก'
+            });
+
+            if (confirm.isConfirmed) {
+                Swal.fire({title: 'กำลังนำเข้า...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+                const { error } = await supabaseClient.from('budget_items').insert(payloads);
+                if (error) throw error;
+
+                await Swal.fire('สำเร็จ', 'นำเข้าข้อมูลเรียบร้อยแล้ว', 'success');
+                fetchBudgetRequests();
+            }
+
+        } catch (err) {
+            Swal.fire('ข้อผิดพลาด', 'ไม่สามารถอ่านไฟล์ได้: ' + err.message, 'error');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+    
+    // เคลียร์ค่า input เผื่อกดอัปโหลดไฟล์เดิมซ้ำ
+    event.target.value = '';
 }
