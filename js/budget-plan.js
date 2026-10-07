@@ -575,54 +575,57 @@ window.exportBudgetExcel = function(reqId) {
     const req = allRequests.find(r => r.id === reqId);
     if (!req) return;
 
-    let total = 0, approved = 0, denied = 0, pending = 0;
+    let totalGross = 0, totalDiscount = 0, totalNet = 0;
     const items = req.budget_items || [];
 
     const wb = XLSX.utils.book_new();
     const wsData = [];
 
-    // Header (แถวที่ 1: A-H และ J-K)
-    wsData.push(["ลำดับ", "รายการสิ่งของ", "ระดับความสำคัญ (1-5)", "จำนวน", "ราคา/หน่วย", "ส่วนลด", "ราคาสุทธิ", "หมายเหตุ", "", "สรุปยอดงบประมาณ", "จำนวนเงิน (บาท)"]);
+    // Header (แถวที่ 1 คอลัมน์ A-H และ J-K)
+    wsData.push(["ลำดับ", "รายการ", "จำนวน", "ราคาต่อหน่วย", "ส่วนลด", "ราคาสุทธิ", "หมายเหตุ", "ระดับความสำคัญ (1-5)", "", "สรุปยอดงบประมาณ", "จำนวนเงิน (บาท)"]);
 
     // วนลูปข้อมูลเขียนลงคอลัมน์ A ถึง H
     items.forEach((item, index) => {
-        const netPrice = parseFloat(item.total_price) || 0;
-        total += netPrice;
-        
-        if (item.item_status === 'approved') approved += netPrice;
-        else if (item.item_status === 'denied') denied += netPrice;
-        else pending += netPrice;
+        const qty = parseFloat(item.quantity) || 0;
+        const price = parseFloat(item.unit_price) || 0;
+        const disc = parseFloat(item.discount) || 0;
+        const gross = qty * price;
+        let net = gross - disc;
+        if (net < 0) net = 0;
+
+        totalGross += gross;
+        totalDiscount += disc;
+        totalNet += net;
 
         wsData.push([
             index + 1,
             item.item_name,
-            item.priority_level || 3,
-            item.quantity,
-            item.unit_price,
-            item.discount || 0,
-            netPrice,
-            item.remark || ''
+            qty,
+            price,
+            disc > 0 ? disc : '',
+            net,
+            item.remark || '',
+            item.priority_level || 3
         ]);
     });
 
     // ตรวจสอบความยาวของแถวเพื่อเติมข้อมูลสรุปลงไปใน J และ K
-    // ถ้าแถวในระบบมีน้อยกว่า 4 แถว (แถวที่ 1-4) จะต้องเติมแถวว่างก่อน
     for(let i = 1; i <= 4; i++) {
         if (!wsData[i]) wsData[i] = [];
         // สร้างช่องว่างให้ครบถึงคอลัมน์ I (Index 8)
         while(wsData[i].length < 9) wsData[i].push("");
     }
 
-    // เขียนข้อมูลสรุปลงใน J (Index 9) และ K (Index 10)
-    wsData[1][9] = "ยอดขอเบิกรวม";     wsData[1][10] = total;
-    wsData[2][9] = "ยอดที่อนุมัติ";     wsData[2][10] = approved;
-    wsData[3][9] = "ยอดที่ไม่อนุมัติ";    wsData[3][10] = denied;
-    wsData[4][9] = "ยอดรอตรวจสอบ";   wsData[4][10] = pending;
+    // เขียนข้อมูลสรุปลงใน J (Index 9) และ K (Index 10) ตาม Template
+    wsData[1][9] = "รวม";                       wsData[1][10] = totalGross;
+    wsData[2][9] = "ส่วนลด";                    wsData[2][10] = totalDiscount;
+    wsData[3][9] = "สุทธิ";                     wsData[3][10] = totalNet;
+    wsData[4][9] = "งบประมาณในโครงการนี้";      wsData[4][10] = departmentBudgets[req.department] || 0;
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     
     // กำหนดความกว้างคอลัมน์ให้ดูสวยงาม
-    ws['!cols'] = [{wch: 5}, {wch: 30}, {wch: 20}, {wch: 10}, {wch: 15}, {wch: 10}, {wch: 15}, {wch: 30}, {wch: 5}, {wch: 20}, {wch: 15}];
+    ws['!cols'] = [{wch: 5}, {wch: 30}, {wch: 10}, {wch: 15}, {wch: 10}, {wch: 15}, {wch: 30}, {wch: 20}, {wch: 5}, {wch: 25}, {wch: 15}];
 
     XLSX.utils.book_append_sheet(wb, ws, "Budget Plan");
     XLSX.writeFile(wb, `งบประมาณ_${req.topic_name}.xlsx`);
@@ -657,16 +660,16 @@ window.handleExcelImport = function(event, reqId) {
                 const row = rows[i];
                 if (!row || row.length === 0) continue;
 
-                const itemName = row[1]; // Column B (Index 1)
+                const itemName = row[1]; // Column B (Index 1) - รายการ
                 if (!itemName) continue; // ถ้าชื่อรายการว่าง ให้ข้าม
 
-                const priority = parseInt(row[2]) || 3;   // Column C
-                const qty = parseFloat(row[3]) || 0;      // Column D
-                const price = parseFloat(row[4]) || 0;    // Column E
-                const discount = parseFloat(row[5]) || 0; // Column F
-                const remark = row[7] || '';              // Column H
+                const qty = parseFloat(row[2]) || 0;      // Column C (Index 2) - จำนวน
+                const price = parseFloat(row[3]) || 0;    // Column D (Index 3) - ราคาต่อหน่วย
+                const discount = parseFloat(row[4]) || 0; // Column E (Index 4) - ส่วนลด
+                const remark = row[6] || '';              // Column G (Index 6) - หมายเหตุ
+                const priority = parseInt(row[7]) || 3;   // Column H (Index 7) - ระดับความสำคัญ (1-5)
 
-                // คำนวณราคาสุทธิเอง เพื่อความชัวร์ (ไม่พึ่งช่อง G)
+                // คำนวณราคาสุทธิเอง เพื่อความชัวร์ (ไม่พึ่งช่อง F)
                 const netPrice = (qty * price) - discount;
                 const finalNet = netPrice > 0 ? netPrice : 0;
 
