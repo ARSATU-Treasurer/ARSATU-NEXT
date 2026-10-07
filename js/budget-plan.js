@@ -571,9 +571,23 @@ async function deleteItem(itemId) {
 // ==========================================
 // 📊 ระบบ Import / Export Excel
 // ==========================================
-window.exportBudgetExcel = function(reqId) {
+window.exportBudgetExcel = async function(reqId) {
     const req = allRequests.find(r => r.id === reqId);
     if (!req) return;
+
+    Swal.fire({title: 'กำลังเตรียมไฟล์...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+
+    // ดึงเพดานงบประมาณของฝ่ายนี้มาแสดง (แก้ปัญหา Error: departmentBudgets is undefined ฝั่ง Member)
+    let deptCeiling = 0;
+    try {
+        const { data: bData } = await supabaseClient
+            .from('department_ceilings')
+            .select('ceiling_amount')
+            .eq('camp_id', currentCampId)
+            .eq('department', req.department)
+            .maybeSingle();
+        if (bData) deptCeiling = parseFloat(bData.ceiling_amount) || 0;
+    } catch(e) { console.error(e); }
 
     let totalGross = 0, totalDiscount = 0, totalNet = 0;
     const items = req.budget_items || [];
@@ -620,7 +634,7 @@ window.exportBudgetExcel = function(reqId) {
     wsData[1][9] = "รวม";                       wsData[1][10] = totalGross;
     wsData[2][9] = "ส่วนลด";                    wsData[2][10] = totalDiscount;
     wsData[3][9] = "สุทธิ";                     wsData[3][10] = totalNet;
-    wsData[4][9] = "งบประมาณในโครงการนี้";      wsData[4][10] = departmentBudgets[req.department] || 0;
+    wsData[4][9] = "งบประมาณในโครงการนี้";      wsData[4][10] = deptCeiling;
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     
@@ -629,6 +643,8 @@ window.exportBudgetExcel = function(reqId) {
 
     XLSX.utils.book_append_sheet(wb, ws, "Budget Plan");
     XLSX.writeFile(wb, `งบประมาณ_${req.topic_name}.xlsx`);
+    
+    Swal.close();
 }
 
 window.triggerImportExcel = function(reqId) {
