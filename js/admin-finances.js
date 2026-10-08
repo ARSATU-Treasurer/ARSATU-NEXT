@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('bank-form')?.addEventListener('submit', handleSaveBank);
     document.getElementById('transfer-form')?.addEventListener('submit', handleTransferMoney);
     document.getElementById('fund-form')?.addEventListener('submit', handleSaveFund);
+    document.getElementById('fund-transfer-form')?.addEventListener('submit', handleTransferFund);
 });
 
 // ================= จัดการบัญชีธนาคาร ================= //
@@ -340,9 +341,11 @@ async function fetchFunds() {
 
         allFunds = funds;
         grid.innerHTML = '';
+        
+        let optionsHTML = '<option value="" disabled selected>-- เลือกกองทุน --</option>';
 
         if (funds.length === 0) {
-            grid.innerHTML = '<p class="col-span-full text-center text-gray-400 py-6 bg-white rounded-2xl border border-dashed border-gray-200">ยังไม่มีกองทุนส่วนกลางในระบบ</p>';
+            grid.innerHTML = '<p class="col-span-full text-center text-gray-400 py-6 bg-white rounded-2xl border border-dashed border-gray-200">ยังไม่มีข้อมูลกองทุน</p>';
         } else {
             funds.forEach(f => {
                 grid.innerHTML += `
@@ -362,8 +365,18 @@ async function fetchFunds() {
                         <p class="text-2xl font-extrabold text-purple-600">${parseFloat(f.balance).toLocaleString('th-TH', {minimumFractionDigits: 2})} ฿</p>
                     </div>
                 </div>`;
+                
+                // นำชื่อกองทุนไปใส่ใน Dropdown ของหน้าต่างโอนเงิน
+                optionsHTML += `<option value="${f.id}">${f.name} (คงเหลือ: ${parseFloat(f.balance).toLocaleString()} ฿)</option>`;
             });
         }
+        
+        // อัปเดต Dropdown ต้นทาง และ ปลายทาง
+        const fundFrom = document.getElementById('fund-transfer-from');
+        const fundTo = document.getElementById('fund-transfer-to');
+        if (fundFrom) fundFrom.innerHTML = optionsHTML;
+        if (fundTo) fundTo.innerHTML = optionsHTML;
+
         lucide.createIcons();
     } catch (error) { grid.innerHTML = `<p class="col-span-full text-red-500 text-center">Error: ${error.message}</p>`; }
 }
@@ -418,9 +431,74 @@ async function handleSaveFund(e) {
 }
 
 async function deleteFund(id) {
-    if(!confirm("⚠️ คุณต้องการลบกองทุนนี้ใช่หรือไม่?")) return;
+    if(!confirm("ลบกองทุนนี้?")) return;
     await supabaseClient.from('funds').delete().eq('id', id);
-    fetchFunds(); 
+    fetchFunds();
+}
+
+function openFundTransferModal() {
+    document.getElementById('fund-transfer-form').reset();
+    document.getElementById('fund-transfer-modal').classList.remove('hidden');
+}
+
+function closeFundTransferModal() {
+    document.getElementById('fund-transfer-modal').classList.add('hidden');
+}
+
+let isProcessingFundTransfer = false;
+async function handleTransferFund(e) {
+    e.preventDefault();
+    if (isProcessingFundTransfer) return;
+    isProcessingFundTransfer = true;
+
+    const btn = document.getElementById('btn-save-fund-transfer');
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 inline animate-spin"></i> กำลังประมวลผล...';
+
+    try {
+        const fromId = document.getElementById('fund-transfer-from').value;
+        const toId = document.getElementById('fund-transfer-to').value;
+        const amount = parseFloat(document.getElementById('fund-transfer-amount').value);
+
+        if (fromId === toId) {
+            Swal.fire('แจ้งเตือน', 'ไม่สามารถโอนเข้ากองทุนเดียวกันได้', 'warning');
+            return;
+        }
+
+        const { data: fundFrom, error: errFrom } = await supabaseClient.from('funds').select('name, balance').eq('id', fromId).single();
+        const { data: fundTo, error: errTo } = await supabaseClient.from('funds').select('name, balance').eq('id', toId).single();
+
+        if (errFrom || errTo) throw new Error("ไม่สามารถดึงข้อมูลกองทุนได้");
+
+        if (parseFloat(fundFrom.balance) < amount) {
+            Swal.fire(`ยอดเงินกองทุน ${fundFrom.name} ไม่เพียงพอ`, `(ยอดคงเหลือ ${parseFloat(fundFrom.balance).toLocaleString()} ฿)`, 'warning');
+            return;
+        }
+
+        const newFromBalance = parseFloat(fundFrom.balance) - amount;
+        const newToBalance = parseFloat(fundTo.balance) + amount;
+
+        const updateFrom = supabaseClient.from('funds').update({ balance: newFromBalance }).eq('id', fromId);
+        const updateTo = supabaseClient.from('funds').update({ balance: newToBalance }).eq('id', toId);
+
+        const [resFrom, resTo] = await Promise.all([updateFrom, updateTo]);
+
+        if (resFrom.error) throw resFrom.error;
+        if (resTo.error) throw resTo.error;
+
+        Swal.fire('สำเร็จ!', 'โอนย้ายเงินระหว่างกองทุนเรียบร้อยแล้ว', 'success');
+        document.getElementById('fund-transfer-form').reset();
+        closeFundTransferModal();
+        fetchFunds(); 
+
+    } catch (err) {
+        Swal.fire('ข้อผิดพลาด', err.message, 'error');
+    } finally {
+        isProcessingFundTransfer = false;
+        btn.disabled = false;
+        btn.innerText = 'ยืนยันการโอนย้าย';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
 }
 
 // ฟังก์ชัน เปิด-ปิด ตัวเลือกเมนูแอดมิน

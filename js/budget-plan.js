@@ -643,7 +643,7 @@ window.exportBudgetExcel = async function(reqId) {
 
     XLSX.utils.book_append_sheet(wb, ws, "Budget Plan");
     XLSX.writeFile(wb, `งบประมาณ_${req.topic_name}.xlsx`);
-    
+
     Swal.close();
 }
 
