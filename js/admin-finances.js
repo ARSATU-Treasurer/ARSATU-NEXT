@@ -77,6 +77,7 @@ async function fetchBanks() {
         transferFrom.innerHTML = optionsHTML;
         transferTo.innerHTML = optionsHTML;
         lucide.createIcons();
+        updateSystemBalanceSummary();
 
     } catch (err) { grid.innerHTML = `<p class="col-span-full text-red-500 text-center">Error: ${err.message}</p>`; }
 }
@@ -378,6 +379,7 @@ async function fetchFunds() {
         if (fundTo) fundTo.innerHTML = optionsHTML;
 
         lucide.createIcons();
+        updateSystemBalanceSummary();
     } catch (error) { grid.innerHTML = `<p class="col-span-full text-red-500 text-center">Error: ${error.message}</p>`; }
 }
 
@@ -515,4 +517,38 @@ function handleManageCampsClick() {
     } else {
         window.location.href = 'dashboard.html?manage=camps';
     }
+}
+
+// ================= ตรวจสอบสมดุลบัญชีและกองทุน ================= //
+
+function updateSystemBalanceSummary() {
+    const summaryBankEl = document.getElementById('summary-bank-total');
+    const summaryFundEl = document.getElementById('summary-fund-total');
+    const statusIconEl = document.getElementById('summary-status-icon');
+
+    if (!summaryBankEl || !summaryFundEl || !statusIconEl) return;
+
+    const totalBanks = allBanks.reduce((sum, b) => sum + (parseFloat(b.balance) || 0), 0);
+    const totalFunds = allFunds.reduce((sum, f) => sum + (parseFloat(f.balance) || 0), 0);
+
+    summaryBankEl.innerText = totalBanks.toLocaleString('th-TH', {minimumFractionDigits: 2});
+    summaryFundEl.innerText = totalFunds.toLocaleString('th-TH', {minimumFractionDigits: 2});
+
+    const diff = Math.abs(totalBanks - totalFunds);
+
+    if (diff === 0 && totalBanks > 0) {
+        statusIconEl.className = "ml-3 w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 shadow-sm border border-green-200 cursor-help transition-all";
+        statusIconEl.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i>';
+        statusIconEl.title = "ยอดเงินตรงกันสมบูรณ์";
+    } else if (diff === 0 && totalBanks === 0) {
+        statusIconEl.className = "ml-3 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 shadow-sm border border-gray-200 cursor-help transition-all";
+        statusIconEl.innerHTML = '<i data-lucide="minus" class="w-5 h-5"></i>';
+        statusIconEl.title = "ยังไม่มีข้อมูลยอดเงิน";
+    } else {
+        statusIconEl.className = "ml-3 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 shadow-sm border border-red-200 animate-pulse cursor-help transition-all";
+        statusIconEl.innerHTML = '<i data-lucide="alert-triangle" class="w-5 h-5"></i>';
+        statusIconEl.title = `ยอดเงินไม่ตรงกัน! มีส่วนต่าง ${diff.toLocaleString('th-TH', {minimumFractionDigits: 2})} ฿`;
+    }
+    
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
