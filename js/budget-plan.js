@@ -585,16 +585,16 @@ window.exportBudgetExcel = async function(reqId) {
 
     Swal.fire({title: 'กำลังเตรียมไฟล์...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
-    // ดึงเพดานงบประมาณของฝ่ายนี้มาแสดง (แก้ปัญหา Error: departmentBudgets is undefined ฝั่ง Member)
+    // ดึงเพดานงบประมาณของฝ่ายนี้มาแสดง
     let deptCeiling = 0;
     try {
         const { data: bData } = await supabaseClient
             .from('department_ceilings')
-            .select('ceiling_amount')
+            .select('amount') // ปรับชื่อคอลัมน์ให้ตรงกับฐานข้อมูลของคุณ (เช่น amount หรือ budget_amount)
             .eq('camp_id', currentCampId)
             .eq('department', req.department)
             .maybeSingle();
-        if (bData) deptCeiling = parseFloat(bData.ceiling_amount) || 0;
+        if (bData) deptCeiling = parseFloat(bData.amount) || parseFloat(bData.budget_amount) || 0;
     } catch(e) { console.error(e); }
 
     let totalGross = 0, totalDiscount = 0, totalNet = 0;
@@ -608,25 +608,41 @@ window.exportBudgetExcel = async function(reqId) {
 
     // วนลูปข้อมูลเขียนลงคอลัมน์ A ถึง H
     items.forEach((item, index) => {
+        const isDenied = item.item_status === 'denied'; // เช็คว่าไม่อนุมัติหรือไม่
+        
         const qty = parseFloat(item.quantity) || 0;
         const price = parseFloat(item.unit_price) || 0;
         const disc = parseFloat(item.discount) || 0;
-        const gross = qty * price;
+        
+        let gross = qty * price;
         let net = gross - disc;
         if (net < 0) net = 0;
 
-        totalGross += gross;
-        totalDiscount += disc;
-        totalNet += net;
+        // 🌟 ถ้าสถานะเป็นไม่อนุมัติ ให้เซ็ตราคาสุทธิเป็น 0 และไม่นำไปบวกยอดรวม
+        if (isDenied) {
+            net = 0;
+            gross = 0;
+        } else {
+            totalGross += gross;
+            totalDiscount += disc;
+            totalNet += net;
+        }
+
+        // จัดการชื่อรายการและหมายเหตุให้รู้ว่าไม่อนุมัติ
+        const itemNameDisplay = isDenied ? `${item.item_name} (ไม่อนุมัติ)` : item.item_name;
+        let remarkDisplay = item.remark || '';
+        if (isDenied) {
+            remarkDisplay = remarkDisplay ? `${remarkDisplay} [ไม่อนุมัติ]` : '[ไม่อนุมัติ]';
+        }
 
         wsData.push([
             index + 1,
-            item.item_name,
+            itemNameDisplay,
             qty,
             price,
-            disc > 0 ? disc : '',
-            net,
-            item.remark || '',
+            !isDenied && disc > 0 ? disc : '',
+            net, // ถ้ายกเลิก/ไม่อนุมัติ ช่องนี้จะแสดงเป็น 0
+            remarkDisplay,
             item.priority_level || 3
         ]);
     });
@@ -634,11 +650,10 @@ window.exportBudgetExcel = async function(reqId) {
     // ตรวจสอบความยาวของแถวเพื่อเติมข้อมูลสรุปลงไปใน J และ K
     for(let i = 1; i <= 4; i++) {
         if (!wsData[i]) wsData[i] = [];
-        // สร้างช่องว่างให้ครบถึงคอลัมน์ I (Index 8)
         while(wsData[i].length < 9) wsData[i].push("");
     }
 
-    // เขียนข้อมูลสรุปลงใน J (Index 9) และ K (Index 10) ตาม Template
+    // เขียนข้อมูลสรุปลงใน J (Index 9) และ K (Index 10)
     wsData[1][9] = "รวม";                       wsData[1][10] = totalGross;
     wsData[2][9] = "ส่วนลด";                    wsData[2][10] = totalDiscount;
     wsData[3][9] = "สุทธิ";                     wsData[3][10] = totalNet;
@@ -647,7 +662,7 @@ window.exportBudgetExcel = async function(reqId) {
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     
     // กำหนดความกว้างคอลัมน์ให้ดูสวยงาม
-    ws['!cols'] = [{wch: 5}, {wch: 30}, {wch: 10}, {wch: 15}, {wch: 10}, {wch: 15}, {wch: 30}, {wch: 20}, {wch: 5}, {wch: 25}, {wch: 15}];
+    ws['!cols'] = [{wch: 5}, {wch: 35}, {wch: 10}, {wch: 15}, {wch: 10}, {wch: 15}, {wch: 30}, {wch: 20}, {wch: 5}, {wch: 25}, {wch: 15}];
 
     XLSX.utils.book_append_sheet(wb, ws, "Budget Plan");
     XLSX.writeFile(wb, `งบประมาณ_${req.topic_name}.xlsx`);
