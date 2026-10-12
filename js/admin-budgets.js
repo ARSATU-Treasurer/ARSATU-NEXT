@@ -57,7 +57,7 @@ async function loadBudgets() {
 
         grid.innerHTML = DEPARTMENTS.map(dept => {
             const b = budgets?.find(x => x.department === dept);
-            const budgetLimit = b ? parseFloat(b.budget_amount) : 0;
+            const budgetLimit = b ? parseFloat(b.ceiling_amount) : 0;
             const used = usage[dept];
             const percent = budgetLimit > 0 ? Math.min((used / budgetLimit) * 100, 100) : (used > 0 ? 100 : 0);
             const isOver = used > budgetLimit && budgetLimit > 0;
@@ -117,14 +117,14 @@ window.editBudget = async function(campId, dept, currentLimit) {
             // อัปเดตข้อมูลเดิม
             const { error } = await supabaseClient
                 .from('department_ceilings')
-                .update({ budget_amount: parseFloat(amount) })
+                .update({ ceiling_amount: parseFloat(amount) })
                 .eq('id', existing.id);
             saveError = error;
         } else {
             // เพิ่มข้อมูลใหม่
             const { error } = await supabaseClient
                 .from('department_ceilings')
-                .insert([{ camp_id: campId, department: dept, budget_amount: parseFloat(amount) }]);
+                .insert([{ camp_id: campId, department: dept, ceiling_amount: parseFloat(amount) }]);
             saveError = error;
         }
         
