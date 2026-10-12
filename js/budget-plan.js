@@ -72,7 +72,6 @@ function renderRequests() {
     container.innerHTML = '';
     let grandTotal = 0;
     
-    // 🌟 ตัวแปรสำหรับนับจำนวนของที่โดนแอดมินตัดหรือแก้
     let deniedCount = 0;
     let adminEditedCount = 0;
 
@@ -83,17 +82,22 @@ function renderRequests() {
         return;
     }
 
-    // 🌟 ลูปแรก: ตรวจสอบและนับรายการที่โดนตัด/โดนแก้ เพื่อทำแจ้งเตือน
+    // 🌟 ลูปแรก: นับจำนวนรายการที่โดนตัด และรายการที่แอดมินตอบกลับ (รองรับทั้งคำเก่าและคำใหม่)
     allRequests.forEach(req => {
         if (req.status === 'reviewed' && req.budget_items) {
             req.budget_items.forEach(item => {
-                if (item.item_status === 'denied') deniedCount++;
-                if (item.remark && item.remark.includes('[เหรัญญิกตอบกลับ]')) adminEditedCount++;
+                if (item.item_status === 'denied') {
+                    deniedCount++;
+                }
+                // เช็คว่ามีคำตอบกลับจากแอดมิน/เหรัญญิกหรือไม่ (รองรับทั้ง 2 คำ)
+                if (item.remark && (item.remark.includes('[เหรัญญิกตอบกลับ]') || item.remark.includes('[ส่วนกลางตอบกลับ]'))) {
+                    adminEditedCount++;
+                }
             });
         }
     });
 
-    // 🌟 วาดป้ายแจ้งเตือน (Alert Banner) ถ้ามีการตัดงบหรือแก้ตัวเลข
+    // 🌟 วาดป้ายแจ้งเตือน (Alert Banner)
     if (deniedCount > 0 || adminEditedCount > 0) {
         const alertHtml = `
             <div class="bg-red-50 border border-red-200 rounded-2xl p-4 mb-4 flex gap-3 items-start shadow-sm animate-pulse">
@@ -122,7 +126,6 @@ function renderRequests() {
             'reviewed': '<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold">ตรวจแล้ว</span>'
         };
 
-        // 🌟 เช็คว่าแฟ้มนี้มีโดนตัดงบไหม ถ้ามีจะทำกรอบสีแดงให้สังเกตง่ายๆ
         let hasIssueInFolder = false;
 
         let itemsHTML = '';
@@ -130,13 +133,19 @@ function renderRequests() {
             const sortedItems = req.budget_items.sort((a, b) => b.priority_level - a.priority_level);
             itemsHTML = sortedItems.map(item => {
                 const isDenied = item.item_status === 'denied';
-                const isAdminEdited = item.remark && item.remark.includes('[เหรัญญิกตอบกลับ]');
-                if ((isDenied || isAdminEdited) && req.status === 'reviewed') hasIssueInFolder = true;
+                
+                // เช็คว่าเป็นหมายเหตุตอบกลับจากแอดมินจริงๆ หรือไม่
+                const isAdminEdited = item.remark && (item.remark.includes('[เหรัญญิกตอบกลับ]') || item.remark.includes('[ส่วนกลางตอบกลับ]'));
+                
+                if ((isDenied || isAdminEdited) && req.status === 'reviewed') {
+                    hasIssueInFolder = true;
+                }
 
                 const discountText = item.discount > 0 ? `<span class="text-red-500 ml-1 bg-red-50 px-1 rounded">-ลด ${parseFloat(item.discount).toLocaleString()} ฿</span>` : '';
                 
-                // ไฮไลท์หมายเหตุแอดมินให้ชัดขึ้น
+                // แยกสีหมายเหตุ: ถ้าเป็นของแอดมินตอบกลับจะเป็นสีแดงเด่นชัด ถ้าเป็นหมายเหตุทั่วไปจะเป็นสีเทา
                 const remarkHtml = item.remark ? `<p class="text-[10px] mt-1.5 p-1.5 rounded-lg ${isAdminEdited ? 'bg-red-50 text-red-700 border border-red-100 font-bold' : 'bg-gray-50 text-gray-500'}">หมายเหตุ: ${item.remark.replace(/\n/g, '<br>')}</p>` : '';
+                
                 return `
                 <div class="flex justify-between items-center py-2 border-b border-gray-50 last:border-0 ${isDenied ? 'opacity-50 bg-gray-50 p-2 rounded-lg' : ''}">
                     <div class="flex-1 pr-2">
@@ -183,7 +192,6 @@ function renderRequests() {
             ? `<span class="text-[10px] text-indigo-500 bg-indigo-50 px-1.5 rounded-md flex items-center gap-1 border border-indigo-100"><i data-lucide="users" class="w-3 h-3"></i> +${req.co_worker_ids.length}</span>` 
             : '';
 
-        // ถ้าแฟ้มนี้มีปัญหา (โดนตัดงบ) จะเปลี่ยนสีขอบการ์ดเป็นสีแดงอ่อนให้เตะตา
         const cardBorderClass = hasIssueInFolder ? 'border-red-300 shadow-md ring-2 ring-red-50' : 'border-gray-200 shadow-sm';
 
         const card = `
