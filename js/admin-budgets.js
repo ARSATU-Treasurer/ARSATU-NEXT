@@ -98,16 +98,43 @@ window.editBudget = async function(campId, dept, currentLimit) {
     if (amount !== undefined) {
         Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         
-        // เช็คว่ามี Record เดิมไหม
-        const { data: existing } = await supabaseClient.from('department_budgets').select('id').eq('camp_id', campId).eq('department', dept).single();
-        
-        if (existing) {
-            await supabaseClient.from('department_budgets').update({ budget_amount: amount }).eq('id', existing.id);
-        } else {
-            await supabaseClient.from('department_budgets').insert([{ camp_id: campId, department: dept, budget_amount: amount }]);
+        // ใช้ maybeSingle() แทน single() เพื่อป้องกัน Error กรณีที่ยังไม่มีข้อมูลเดิมในฐานข้อมูล
+        const { data: existing, error: fetchError } = await supabaseClient
+            .from('department_budgets')
+            .select('id')
+            .eq('camp_id', campId)
+            .eq('department', dept)
+            .maybeSingle();
+
+        if (fetchError) {
+            console.error(fetchError);
+            Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถตรวจสอบข้อมูลเดิมได้', 'error');
+            return;
         }
         
+        let saveError;
+        if (existing) {
+            // อัปเดตข้อมูลเดิม
+            const { error } = await supabaseClient
+                .from('department_budgets')
+                .update({ budget_amount: parseFloat(amount) })
+                .eq('id', existing.id);
+            saveError = error;
+        } else {
+            // เพิ่มข้อมูลใหม่
+            const { error } = await supabaseClient
+                .from('department_budgets')
+                .insert([{ camp_id: campId, department: dept, budget_amount: parseFloat(amount) }]);
+            saveError = error;
+        }
+        
+        if (saveError) {
+            console.error(saveError);
+            Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกงบประมาณได้', 'error');
+            return;
+        }
+
         Swal.close();
-        loadBudgets();
+        loadBudgets(); // โหลดข้อมูลและเรนเดอร์หน้าจอใหม่
     }
 }
