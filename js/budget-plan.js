@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!profile) return window.location.href = '../index.html';
     
     if (!profile.default_department && profile.role !== 'admin') {
-        await Swal.fire({ title: 'ยังไม่มีสังกัดฝ่าย!', text: 'กรุณาติดต่อแอดมิน', icon: 'warning' });
+        await Swal.fire({ title: 'ยังไม่มีสังกัดฝ่าย!', text: 'กรุณาติดต่อเหรัญญิก', icon: 'warning' });
         return window.location.href = 'dashboard.html';
     }
     userProfile = profile;
@@ -88,7 +88,7 @@ function renderRequests() {
         if (req.status === 'reviewed' && req.budget_items) {
             req.budget_items.forEach(item => {
                 if (item.item_status === 'denied') deniedCount++;
-                if (item.remark && item.remark.includes('[ส่วนกลางตอบกลับ]')) adminEditedCount++;
+                if (item.remark && item.remark.includes('[เหรัญญิกตอบกลับ]')) adminEditedCount++;
             });
         }
     });
@@ -99,7 +99,7 @@ function renderRequests() {
             <div class="bg-red-50 border border-red-200 rounded-2xl p-4 mb-4 flex gap-3 items-start shadow-sm animate-pulse">
                 <div class="bg-red-100 p-2 rounded-full text-red-600 shrink-0"><i data-lucide="alert-triangle" class="w-5 h-5"></i></div>
                 <div>
-                    <h4 class="font-bold text-red-800 text-sm">ส่วนกลางตรวจสอบและปรับลดงบประมาณแล้ว!</h4>
+                    <h4 class="font-bold text-red-800 text-sm">เหรัญญิกตรวจสอบและปรับลดงบประมาณแล้ว!</h4>
                     <p class="text-xs text-red-600 mt-1">พบรายการถูกตัดทิ้ง <b>${deniedCount}</b> รายการ และมีการขอปรับลดตัวเลข <b>${adminEditedCount}</b> รายการ กรุณาตรวจสอบแฟ้มที่สถานะ "ตรวจแล้ว"</p>
                 </div>
             </div>
@@ -130,13 +130,13 @@ function renderRequests() {
             const sortedItems = req.budget_items.sort((a, b) => b.priority_level - a.priority_level);
             itemsHTML = sortedItems.map(item => {
                 const isDenied = item.item_status === 'denied';
-                const isAdminEdited = item.remark && item.remark.includes('[ส่วนกลางตอบกลับ]');
+                const isAdminEdited = item.remark && item.remark.includes('[เหรัญญิกตอบกลับ]');
                 if ((isDenied || isAdminEdited) && req.status === 'reviewed') hasIssueInFolder = true;
 
                 const discountText = item.discount > 0 ? `<span class="text-red-500 ml-1 bg-red-50 px-1 rounded">-ลด ${parseFloat(item.discount).toLocaleString()} ฿</span>` : '';
                 
                 // ไฮไลท์หมายเหตุแอดมินให้ชัดขึ้น
-                const remarkHtml = item.remark ? `<p class="text-[10px] mt-1.5 p-1.5 rounded-lg ${isAdminEdited ? 'bg-red-50 text-red-700 border border-red-100 font-bold' : 'bg-gray-50 text-gray-500'}">หมายเหตุจากแอดมิน: ${item.remark.replace(/\n/g, '<br>')}</p>` : '';
+                const remarkHtml = item.remark ? `<p class="text-[10px] mt-1.5 p-1.5 rounded-lg ${isAdminEdited ? 'bg-red-50 text-red-700 border border-red-100 font-bold' : 'bg-gray-50 text-gray-500'}">หมายเหตุ: ${item.remark.replace(/\n/g, '<br>')}</p>` : '';
                 return `
                 <div class="flex justify-between items-center py-2 border-b border-gray-50 last:border-0 ${isDenied ? 'opacity-50 bg-gray-50 p-2 rounded-lg' : ''}">
                     <div class="flex-1 pr-2">
@@ -430,7 +430,7 @@ async function handleSaveRequest(e) {
 async function submitRequest(reqId) {
     const req = allRequests.find(r => r.id === reqId);
     if (!req.budget_items || req.budget_items.length === 0) return Swal.fire('ส่งไม่ได้', 'กรุณาเพิ่มรายการสิ่งของอย่างน้อย 1 อย่าง', 'warning');
-    const { isConfirmed } = await Swal.fire({ title: 'ส่งแฟ้มให้ส่วนกลาง?', icon: 'question', showCancelButton: true });
+    const { isConfirmed } = await Swal.fire({ title: 'ส่งแฟ้มให้ตรวจสอบ?', icon: 'question', showCancelButton: true });
     if (isConfirmed) {
         Swal.fire({title: 'กำลังส่ง...', didOpen: ()=>Swal.showLoading()});
         await supabaseClient.from('budget_requests').update({ status: 'pending' }).eq('id', reqId);
