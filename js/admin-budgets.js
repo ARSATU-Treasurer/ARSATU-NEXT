@@ -34,7 +34,7 @@ async function loadBudgets() {
 
     try {
         // ดึงเพดานงบที่ตั้งไว้
-        const { data: budgets } = await supabaseClient.from('department_budgets').select('*').eq('camp_id', campId);
+        const { data: budgets } = await supabaseClient.from('department_ceilings').select('*').eq('camp_id', campId);
         
         // ดึงรายการเบิกจ่ายของค่ายนี้ (ไม่นับที่ถูกตีกลับ หรือ ร่าง)
         const { data: clearances } = await supabaseClient.from('clearances')
@@ -100,7 +100,7 @@ window.editBudget = async function(campId, dept, currentLimit) {
         
         // ใช้ maybeSingle() แทน single() เพื่อป้องกัน Error กรณีที่ยังไม่มีข้อมูลเดิมในฐานข้อมูล
         const { data: existing, error: fetchError } = await supabaseClient
-            .from('department_budgets')
+            .from('department_ceilings')
             .select('id')
             .eq('camp_id', campId)
             .eq('department', dept)
@@ -116,14 +116,14 @@ window.editBudget = async function(campId, dept, currentLimit) {
         if (existing) {
             // อัปเดตข้อมูลเดิม
             const { error } = await supabaseClient
-                .from('department_budgets')
+                .from('department_ceilings')
                 .update({ budget_amount: parseFloat(amount) })
                 .eq('id', existing.id);
             saveError = error;
         } else {
             // เพิ่มข้อมูลใหม่
             const { error } = await supabaseClient
-                .from('department_budgets')
+                .from('department_ceilings')
                 .insert([{ camp_id: campId, department: dept, budget_amount: parseFloat(amount) }]);
             saveError = error;
         }
