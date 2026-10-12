@@ -228,7 +228,7 @@ function renderRequests() {
         }
 
         const reqStatusHtml = req.status === 'pending' 
-            ? '<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold border border-blue-200">รอส่วนกลางตรวจ</span>' 
+            ? '<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold border border-blue-200">รอเหรัญญิกตรวจ</span>' 
             : '<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs font-bold border border-emerald-200">ตรวจแล้ว</span>';
 
         const collabBadge = req.co_worker_ids && req.co_worker_ids.length > 0 
