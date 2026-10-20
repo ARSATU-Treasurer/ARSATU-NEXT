@@ -531,16 +531,17 @@ function updateSystemBalanceSummary() {
     const totalBanks = allBanks.reduce((sum, b) => sum + (parseFloat(b.balance) || 0), 0);
     const totalFunds = allFunds.reduce((sum, f) => sum + (parseFloat(f.balance) || 0), 0);
 
-    summaryBankEl.innerText = totalBanks.toLocaleString('th-TH', {minimumFractionDigits: 2});
-    summaryFundEl.innerText = totalFunds.toLocaleString('th-TH', {minimumFractionDigits: 2});
+    summaryBankEl.innerText = totalBanks.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    summaryFundEl.innerText = totalFunds.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
-    const diff = Math.abs(totalBanks - totalFunds);
+    // 🌟 แก้ไขตรงนี้: ปัดเศษสตางค์เทียบกัน ป้องกันปัญหา Floating Point คลาดเคลื่อน
+    const diff = Math.abs(Math.round(totalBanks * 100) - Math.round(totalFunds * 100)) / 100;
 
-    if (diff === 0 && totalBanks > 0) {
+    if (diff < 0.01 && totalBanks > 0) {
         statusIconEl.className = "ml-3 w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 shadow-sm border border-green-200 cursor-help transition-all";
         statusIconEl.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i>';
         statusIconEl.title = "ยอดเงินตรงกันสมบูรณ์";
-    } else if (diff === 0 && totalBanks === 0) {
+    } else if (diff < 0.01 && totalBanks === 0) {
         statusIconEl.className = "ml-3 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 shadow-sm border border-gray-200 cursor-help transition-all";
         statusIconEl.innerHTML = '<i data-lucide="minus" class="w-5 h-5"></i>';
         statusIconEl.title = "ยังไม่มีข้อมูลยอดเงิน";
