@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ARSATU NEXT - โปรแกรมจำลองงบประมาณ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>body { font-family: 'Prompt', sans-serif; }</style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 text-gray-800 pb-24 min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 py-4 shadow-sm flex items-center justify-between sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <a href="dashboard.html" class="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-full transition-colors"><i data-lucide="arrow-left" class="w-5 h-5"></i></a>
+            <div>
+                <p class="text-xs text-gray-500 mb-0.5"><i data-lucide="check-square" class="w-3.5 h-3.5 inline text-purple-600"></i> โปรแกรมจำลองงบประมาณ</p>
+                <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600">Budget Simulator</h1>
+            </div>
+        </div>
+        <div>
+            <button onclick="resetSimulation()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3.5 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> รีเซ็ตค่า
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="p-5 max-w-6xl mx-auto space-y-6 mt-2">
+
+        <!-- Banner แจ้งเตือนสภาวะคล่อง -->
+        <div id="simulation-advice-banner" class="bg-indigo-900 text-white p-5 rounded-2xl shadow-md flex items-start gap-4 relative overflow-hidden">
+            <div class="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-10">
+                <i data-lucide="landmark" class="w-36 h-36"></i>
+            </div>
+            <div class="p-2 bg-white/10 rounded-xl shrink-0"><i data-lucide="coins" class="w-6 h-6 text-yellow-300"></i></div>
+            <div class="space-y-1 relative z-10">
+                <h3 class="font-bold text-sm text-yellow-200" id="advice-title">กำลังคำนวณสถานะกระแสเงินสด...</h3>
+                <p class="text-xs text-indigo-100 leading-relaxed" id="advice-desc">ระบบกำลังสรุปยอดเงินกองทุนรวมและรายการค่าใช้จ่ายเพื่อจำลองกระแสเงินสด</p>
+            </div>
+        </div>
+
+        <!-- Dashboard สรุปกระแสเงินสด (4 ช่อง) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2">1. เงินในกองทุนจริง ณ ตอนนี้</p>
+                <p id="res-actual-funds" class="text-xl font-extrabold text-blue-600 mt-1 pl-2">0.00 ฿</p>
+                <span class="text-[10px] text-gray-400 pl-2 block mt-1">*ยอดเงินสดรวมทุกบัญชี/กองทุน</span>
+            </div>
+
+            <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2">2. งบคาดการณ์ที่จะเข้าเพิ่ม</p>
+                <p id="res-expected-income" class="text-xl font-extrabold text-emerald-600 mt-1 pl-2">+0.00 ฿</p>
+                <span class="text-[10px] text-gray-400 pl-2 block mt-1">*กรอกเพิ่มได้จากช่องด้านซ้าย</span>
+            </div>
+
+            <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1.5 h-full bg-rose-500"></div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2">3. ยอดใช้จ่ายค่ายนี้ (จำลอง)</p>
+                <p id="res-sim-expense" class="text-xl font-extrabold text-rose-600 mt-1 pl-2">-0.00 ฿</p>
+                <span id="lbl-expense-sub" class="text-[10px] text-gray-400 pl-2 block mt-1">*หลังปรับราคา & ติ๊กเลือก</span>
+            </div>
+
+            <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1.5 h-full bg-purple-600"></div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2">4. เงินคงเหลือยกไปค่ายอนาคต</p>
+                <p id="res-carried-forward" class="text-xl font-extrabold text-purple-700 mt-1 pl-2">0.00 ฿</p>
+                <span id="lbl-camps-count-sub" class="text-[10px] font-bold text-purple-600 pl-2 block mt-1">สำหรับค่ายอื่นๆ ในปีนี้</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- ฝั่งซ้าย: แผงควบคุม What-if -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-5">
+                <h3 class="font-bold text-gray-800 text-sm border-b border-gray-100 pb-3 flex items-center gap-2">
+                    <i data-lucide="sliders" class="w-4 h-4 text-purple-600"></i> ปรับสมมติฐานการเงิน (What-If)
+                </h3>
+
+                <!-- 1. ใส่งบคาดการณ์ -->
+                <div class="bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-100 space-y-2">
+                    <label class="block text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                        <i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i> งบประมาณที่จะเข้ามาเพิ่ม (บาท):
+                    </label>
+                    <input type="number" id="sim-future-income-input" value="0" min="0" step="1000" oninput="runSimulation()" placeholder="เช่น 50000" class="w-full bg-white border border-emerald-200 rounded-lg p-2 text-xs font-extrabold text-emerald-700 outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                <!-- 2. ตัวกรอง Priority -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1.5">ตัวกรองด่วนตามระดับความสำคัญ:</label>
+                    <select id="sim-min-priority" onchange="runSimulation()" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="0">แสดงทุกรายการ (ตั้งค่าติ๊กเลือกเองได้)</option>
+                        <option value="2">ซ่อน Priority 1 อัตโนมัติ</option>
+                        <option value="3">ซ่อน Priority 1 - 2 อัตโนมัติ</option>
+                        <option value="4">ซ่อน Priority 1 - 3 อัตโนมัติ</option>
+                    </select>
+                </div>
+
+                <!-- รายชื่อค่ายถัดไป -->
+                <div class="pt-3 border-t border-gray-100">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-xs font-bold text-gray-700">ค่ายถัดไปในปีการศึกษานี้:</label>
+                        <span id="badge-future-camps-count" class="text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">0 ค่าย</span>
+                    </div>
+                    <div id="future-camps-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-1 text-xs">
+                        <span class="text-gray-400 italic">กำลังดึงข้อมูลค่าย...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ฝั่งขวา: ส่วนแสดงผลวิเคราะห์รายฝ่าย, Donut Chart แยกเป็นสัดส่วน และรายละเอียดค่าใช้จ่าย -->
+            <div class="lg:col-span-2 space-y-6">
+
+                <!-- 1. Donut Chart แยกเป็นการ์ดเดี่ยว แสดงผลกว้างเต็มตา -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-3">
+                    <h4 class="font-bold text-gray-800 text-xs flex items-center gap-1.5">
+                        <i data-lucide="pie-chart" class="w-4 h-4 text-purple-600"></i> สัดส่วนยอดใช้จ่ายจำลองแยกตามฝ่าย
+                    </h4>
+                    <div class="w-full h-64 relative flex items-center justify-center">
+                        <canvas id="departmentDonutChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- 2. ตารางสรุปงบรายฝ่าย (เต็มความกว้าง ไม่อึดอัด) -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-4 bg-gray-50 border-b border-gray-100 font-bold text-xs text-gray-700 flex items-center justify-between">
+                        <span class="flex items-center gap-1.5"><i data-lucide="bar-chart-3" class="w-4 h-4 text-purple-600"></i> สรุปยอดขอเบิกรายฝ่าย (เทียบเพดาน)</span>
+                        <span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold">Read-Only</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-white text-gray-400 font-bold uppercase text-[10px] border-b border-gray-100">
+                                <tr>
+                                    <th class="p-3">ฝ่าย</th>
+                                    <th class="p-3 text-right">เพดานตั้งต้น</th>
+                                    <th class="p-3 text-right">ยอดขอเบิก (หลังเลือก/ปรับราคา)</th>
+                                    <th class="p-3 text-center">สถานะ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sim-department-table-body" class="divide-y divide-gray-50">
+                                <tr><td colspan="4" class="p-6 text-center text-gray-400">กำลังประมวลผล...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 3. รายละเอียดรายการสิ่งของขอเบิก (มี Checkbox + ปรับราคาได้โดยไม่ปิดหัวข้อ) -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-4 bg-gray-50 border-b border-gray-100 font-bold text-xs text-gray-700 flex items-center justify-between">
+                        <span class="flex items-center gap-1.5"><i data-lucide="folder-open" class="w-4 h-4 text-purple-600"></i> รายการสิ่งของ (ปรับลด-เพิ่มราคา & ติ๊กเลือก)</span>
+                        <span id="topic-count-badge" class="text-[10px] text-gray-500 font-normal">0 หัวข้อโครงการ</span>
+                    </div>
+                    <div id="topics-accordion-container" class="divide-y divide-gray-100">
+                        <div class="p-8 text-center text-gray-400 text-xs">กำลังโหลดข้อมูลหัวข้อขอเบิก...</div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Navigation Bar -->
+    <nav class="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-md border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.03)] z-50">
+        <ul class="flex justify-around items-center h-16 max-w-lg mx-auto">
+            <li>
+                <a href="dashboard.html" class="flex flex-col items-center text-gray-400 hover:text-indigo-600 transition-colors">
+                    <i data-lucide="shield-alert" class="w-6 h-6 mb-1"></i>
+                    <span class="text-[10px] font-bold">งานรอตรวจ</span>
+                </a>
+            </li>
+            <li>
+                <div class="relative -top-5">
+                    <a href="finances.html" class="flex items-center justify-center w-14 h-14 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full text-white shadow-lg shadow-purple-600/30 hover:scale-105 transition-transform">
+                        <i data-lucide="landmark" class="w-6 h-6"></i>
+                    </a>
+                </div>
+            </li>
+            <li>
+                <a href="../member/dashboard.html" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition-colors">
+                    <i data-lucide="user" class="w-6 h-6 mb-1"></i>
+                    <span class="text-[10px] font-bold">หน้าฝั่งสมาชิก</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="../js/supabase.js"></script>
+    <script>
+        let originalCeilings = [];
+        let allRequestsData = [];
+        let actualFundsBalance = 0;
+        let currentCamp = null;
+        let futureCamps = [];
+        
+        let itemSelectionState = {};
+        let itemCustomPrices = {};
+        let donutChartInstance = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) return window.location.href = '../index.html';
+
+            const { data: profile } = await supabaseClient.from('profiles').select('role').eq('id', session.user.id).single();
+            if (!profile || profile.role !== 'admin') return window.location.href = '../member/dashboard.html';
+
+            await loadSimulatorData();
+            lucide.createIcons();
+        });
+
+        async function loadSimulatorData() {
+            try {
+                const { data: camp, error: campErr } = await supabaseClient.from('camps').select('*').eq('is_active', true).single();
+                if (campErr || !camp) throw new Error("ไม่พบโครงการค่ายที่เปิดใช้งานอยู่ปัจจุบัน");
+                currentCamp = camp;
+
+                const { data: campsList } = await supabaseClient.from('camps').select('*').eq('academic_year', camp.academic_year);
+                futureCamps = (campsList || []).filter(c => c.id !== camp.id);
+
+                const { data: funds } = await supabaseClient.from('funds').select('balance');
+                actualFundsBalance = (funds || []).reduce((sum, f) => sum + (parseFloat(f.balance) || 0), 0);
+
+                const { data: ceilings } = await supabaseClient.from('department_ceilings').select('*').eq('camp_id', camp.id);
+                originalCeilings = ceilings || [];
+
+                const { data: requests } = await supabaseClient.from('budget_requests').select('*, budget_items(*)').eq('camp_id', camp.id);
+                allRequestsData = requests || [];
+
+                allRequestsData.forEach(req => {
+                    if (req.budget_items) {
+                        req.budget_items.forEach(item => {
+                            itemSelectionState[item.id] = true;
+                            itemCustomPrices[item.id] = parseFloat(item.total_price) || (parseFloat(item.quantity) * parseFloat(item.unit_price)) || 0;
+                        });
+                    }
+                });
+
+                renderFutureCampsList();
+                runSimulation();
+            } catch (err) {
+                console.error(err);
+                Swal.fire('ข้อผิดพลาด', err.message, 'error');
+            }
+        }
+
+        function renderFutureCampsList() {
+            const container = document.getElementById('future-camps-list');
+            const badge = document.getElementById('badge-future-camps-count');
+            badge.innerText = `${futureCamps.length} ค่าย`;
+
+            if (futureCamps.length === 0) {
+                container.innerHTML = '<span class="text-gray-400 italic">ไม่มีค่ายอื่นในปีการศึกษานี้แล้ว</span>';
+                return;
+            }
+
+            container.innerHTML = futureCamps.map(fc => `
+                <div class="flex items-center justify-between bg-gray-50 p-2 rounded-lg border border-gray-100">
+                    <span class="font-bold text-gray-700 truncate">${fc.name}</span>
+                    <span class="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold">รอจัด</span>
+                </div>
+            `).join('');
+        }
+
+        function onItemCheckboxChange(itemId, isChecked) {
+            itemSelectionState[itemId] = isChecked;
+            runSimulation();
+        }
+
+        function onItemPriceChange(itemId, newPrice) {
+            itemCustomPrices[itemId] = parseFloat(newPrice) || 0;
+            runSimulation();
+        }
+
+        function runSimulation() {
+            const minPriority = parseInt(document.getElementById('sim-min-priority').value) || 0;
+            const expectedFutureIncome = parseFloat(document.getElementById('sim-future-income-input').value) || 0;
+
+            let totalSimulatedExpense = 0;
+            let deptRequestedMap = {};
+            let allDepartmentsSet = new Set();
+
+            originalCeilings.forEach(c => allDepartmentsSet.add(c.department));
+
+            allRequestsData.forEach(req => {
+                allDepartmentsSet.add(req.department);
+                let dept = req.department;
+                if (!deptRequestedMap[dept]) deptRequestedMap[dept] = 0;
+
+                if (req.budget_items) {
+                    req.budget_items.forEach(item => {
+                        if (minPriority > 0 && item.priority_level < minPriority) {
+                            itemSelectionState[item.id] = false;
+                        }
+
+                        const isSelected = itemSelectionState[item.id] !== false;
+                        const price = itemCustomPrices[item.id] !== undefined ? itemCustomPrices[item.id] : (parseFloat(item.total_price) || 0);
+
+                        if (isSelected) {
+                            deptRequestedMap[dept] += price;
+                            totalSimulatedExpense += price;
+                        }
+                    });
+                }
+            });
+
+            const totalProjectedFunds = actualFundsBalance + expectedFutureIncome;
+            const carriedForwardBalance = totalProjectedFunds - totalSimulatedExpense;
+
+            document.getElementById('res-actual-funds').innerText = actualFundsBalance.toLocaleString('th-TH', {minimumFractionDigits: 2}) + ' ฿';
+            document.getElementById('res-expected-income').innerText = '+' + expectedFutureIncome.toLocaleString('th-TH', {minimumFractionDigits: 2}) + ' ฿';
+            document.getElementById('res-sim-expense').innerText = '-' + totalSimulatedExpense.toLocaleString('th-TH', {minimumFractionDigits: 2}) + ' ฿';
+            
+            const carriedEl = document.getElementById('res-carried-forward');
+            carriedEl.innerText = carriedForwardBalance.toLocaleString('th-TH', {minimumFractionDigits: 2}) + ' ฿';
+            carriedEl.className = carriedForwardBalance < 0 ? "text-xl font-extrabold text-red-600 mt-1 pl-2" : "text-xl font-extrabold text-purple-700 mt-1 pl-2";
+            document.getElementById('lbl-camps-count-sub').innerText = `สำหรับอีก ${futureCamps.length} ค่ายในปีนี้`;
+
+            updateAdviceBanner(actualFundsBalance, expectedFutureIncome, totalSimulatedExpense, carriedForwardBalance, futureCamps.length);
+
+            const deptTbody = document.getElementById('sim-department-table-body');
+            const sortedDepts = Array.from(allDepartmentsSet);
+
+            if (sortedDepts.length === 0) {
+                deptTbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-400">ยังไม่มีข้อมูลฝ่ายหรือการขอเบิกในระบบ</td></tr>';
+            } else {
+                deptTbody.innerHTML = sortedDepts.map(dept => {
+                    const ceilingObj = originalCeilings.find(c => c.department === dept);
+                    const ceiling = ceilingObj ? parseFloat(ceilingObj.ceiling_amount) || 0 : 0;
+                    const requested = deptRequestedMap[dept] || 0;
+                    const isOver = ceiling > 0 && requested > ceiling;
+                    const hasNoCeiling = !ceilingObj;
+
+                    return `
+                        <tr class="hover:bg-gray-50 border-b border-gray-50">
+                            <td class="p-3 font-bold text-gray-800">
+                                ${dept}
+                                ${hasNoCeiling ? '<span class="ml-1 px-1 py-0.2 bg-amber-100 text-amber-700 rounded text-[9px]">ยังไม่ตั้ง</span>' : ''}
+                            </td>
+                            <td class="p-3 text-right text-gray-400">${ceiling.toLocaleString()} ฿</td>
+                            <td class="p-3 text-right font-extrabold ${isOver ? 'text-red-600' : 'text-gray-800'}">${requested.toLocaleString(undefined, {minimumFractionDigits: 2})} ฿</td>
+                            <td class="p-3 text-center">
+                                ${hasNoCeiling ? '<span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-bold">-</span>' : (isOver ? '<span class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-bold">เกิน</span>' : '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold">ปกติ</span>')}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            renderDonutChart(deptRequestedMap);
+            updateTopicsAccordionDOM();
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function renderDonutChart(deptMap) {
+            const ctx = document.getElementById('departmentDonutChart').getContext('2d');
+            const labels = Object.keys(deptMap);
+            const data = Object.values(deptMap);
+
+            if (donutChartInstance) {
+                donutChartInstance.data.labels = labels;
+                donutChartInstance.data.datasets[0].data = data;
+                donutChartInstance.update();
+                return;
+            }
+
+            donutChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#9333ea', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#06b6d4'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { font: { family: 'Prompt', size: 11 }, boxWidth: 12 }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTopicsAccordionDOM() {
+            const container = document.getElementById('topics-accordion-container');
+            document.getElementById('topic-count-badge').innerText = `${allRequestsData.length} หัวข้อโครงการ`;
+
+            if (allRequestsData.length === 0) {
+                container.innerHTML = '<div class="p-8 text-center text-gray-400 text-xs">ยังไม่มีรายการขอเบิกในระบบ</div>';
+                return;
+            }
+
+            if (!container.dataset.rendered) {
+                container.innerHTML = allRequestsData.map((req, index) => {
+                    const items = req.budget_items || [];
+                    const itemsHTML = items.map(i => {
+                        const isChecked = itemSelectionState[i.id] !== false;
+                        const currentPrice = itemCustomPrices[i.id] !== undefined ? itemCustomPrices[i.id] : (parseFloat(i.total_price) || 0);
+                        const priorityBadge = getPriorityBadge(i.priority_level);
+
+                        return `
+                            <tr class="hover:bg-gray-50 border-b border-gray-50 last:border-0 item-row-${i.id} ${!isChecked ? 'opacity-40 bg-gray-50/50' : ''}">
+                                <td class="p-2.5 pl-4 flex items-center gap-2.5">
+                                    <input type="checkbox" id="item-chk-${i.id}" ${isChecked ? 'checked' : ''} onchange="onItemCheckboxChange('${i.id}', this.checked)" class="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500 cursor-pointer">
+                                    <label for="item-chk-${i.id}" class="font-medium text-gray-700 cursor-pointer">${i.item_name}</label>
+                                </td>
+                                <td class="p-2.5 text-center">${priorityBadge}</td>
+                                <td class="p-2.5 text-right text-gray-400 text-[11px]">${parseFloat(i.quantity).toLocaleString()} ชิ้น</td>
+                                <td class="p-2.5 text-right">
+                                    <input type="number" id="item-price-${i.id}" value="${currentPrice}" oninput="onItemPriceChange('${i.id}', this.value)" class="w-24 text-right bg-gray-50 border border-gray-200 rounded p-1 text-xs font-bold text-purple-600 outline-none focus:ring-1 focus:ring-purple-500"> ฿
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    return `
+                        <div class="group topic-accordion-item" data-request-id="${req.id}">
+                            <button onclick="toggleTopicAccordion(${index})" class="w-full p-4 flex items-center justify-between bg-white hover:bg-gray-50/80 transition-colors text-left outline-none">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-xs shrink-0">
+                                        <i data-lucide="chevron-down" id="icon-topic-${index}" class="w-4 h-4 transition-transform duration-200"></i>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-bold text-gray-800 text-xs sm:text-sm">${req.topic_name}</h4>
+                                            <span class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-bold">${req.department}</span>
+                                        </div>
+                                        <p class="text-[11px] text-gray-400 mt-0.5">รายการทั้งหมด ${items.length} ชิ้น</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span id="topic-total-${req.id}" class="font-extrabold text-gray-800 text-sm">0.00 ฿</span>
+                                    <span class="text-[10px] text-gray-400 block">ยอดรวมหัวข้อ</span>
+                                </div>
+                            </button>
+                            <div id="content-topic-${index}" class="hidden bg-gray-50/50 px-4 pb-4 pt-2 border-t border-gray-100">
+                                <div class="overflow-x-auto bg-white rounded-xl border border-gray-100 shadow-sm">
+                                    <table class="w-full text-xs text-left">
+                                        <thead class="bg-gray-50 text-gray-400 font-bold uppercase text-[9px] border-b border-gray-100">
+                                            <tr>
+                                                <th class="p-2.5 pl-4">เลือก / ชื่อรายการสิ่งของ</th>
+                                                <th class="p-2.5 text-center">Priority</th>
+                                                <th class="p-2.5 text-right">จำนวน</th>
+                                                <th class="p-2.5 text-right">ราคารวม (ปรับแก้ได้)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-50">
+                                            ${itemsHTML}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                container.dataset.rendered = "true";
+            }
+
+            allRequestsData.forEach(req => {
+                let topicTotal = 0;
+                if (req.budget_items) {
+                    req.budget_items.forEach(item => {
+                        const isChecked = itemSelectionState[item.id] !== false;
+                        const price = itemCustomPrices[item.id] !== undefined ? itemCustomPrices[item.id] : 0;
+                        if (isChecked) topicTotal += price;
+
+                        const row = document.querySelector(`.item-row-${item.id}`);
+                        if (row) {
+                            if (isChecked) row.classList.remove('opacity-40', 'bg-gray-50/50');
+                            else row.classList.add('opacity-40', 'bg-gray-50/50');
+                        }
+                    });
+                }
+                const totalEl = document.getElementById(`topic-total-${req.id}`);
+                if (totalEl) totalEl.innerText = topicTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) + ' ฿';
+            });
+        }
+
+        function toggleTopicAccordion(index) {
+            const content = document.getElementById(`content-topic-${index}`);
+            const icon = document.getElementById(`icon-topic-${index}`);
+            
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                content.classList.add('hidden');
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function getPriorityBadge(p) {
+            switch(p) {
+                case 1: return '<span class="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[9px] font-bold">P1</span>';
+                case 2: return '<span class="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-bold">P2</span>';
+                case 3: return '<span class="px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[9px] font-bold">P3</span>';
+                case 4: return '<span class="px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded text-[9px] font-bold">P4</span>';
+                case 5: return '<span class="px-1.5 py-0.5 bg-rose-50 text-rose-600 rounded text-[9px] font-bold">P5</span>';
+                default: return `<span class="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[9px]">P${p}</span>`;
+            }
+        }
+
+        function updateAdviceBanner(actual, expected, expense, carried, remainingCamps) {
+            const titleEl = document.getElementById('advice-title');
+            const descEl = document.getElementById('advice-desc');
+            const bannerEl = document.getElementById('simulation-advice-banner');
+
+            if (carried < 0) {
+                bannerEl.className = "bg-rose-900 text-white p-5 rounded-2xl shadow-md flex items-start gap-4 relative overflow-hidden";
+                titleEl.innerText = "🔴 สภาพคล่องติดลบ! (Cash Deficit)";
+                descEl.innerText = `ยอดใช้จ่ายค่ายนี้ (${expense.toLocaleString()} ฿) เกินเงินรวมทั้งหมด ชุมนุมจะขาดเงินอยู่ ${Math.abs(carried).toLocaleString()} ฿ ลองปรับลดราคาหรือติ๊กเอา items ออกด้านล่างด่วน!`;
+            } else if (remainingCamps > 0 && (carried / remainingCamps) < 10000) {
+                bannerEl.className = "bg-amber-900 text-white p-5 rounded-2xl shadow-md flex items-start gap-4 relative overflow-hidden";
+                titleEl.innerText = "🟡 เงินยกยอดไปค่ายถัดไปตึงตัวมาก! (Low Carry-Forward)";
+                descEl.innerText = `หลังจบค่ายนี้ จะเหลือเงินยกยอดไปค่ายถัดไปเพียง ${carried.toLocaleString()} ฿ ลองปรับลดราคารายการสิ่งของเพื่อสำรองเงินไว้ค่ายหน้า`;
+            } else {
+                bannerEl.className = "bg-emerald-900 text-white p-5 rounded-2xl shadow-md flex items-start gap-4 relative overflow-hidden";
+                titleEl.innerText = "🟢 สภาพคล่องการเงินสมบูรณ์ (Healthy Cash Flow)";
+                descEl.innerText = `จัดค่ายนี้ได้อย่างสบายใจ! หลังจบค่ายจะยังมีเงินเหลือยกยอดไปใช้อีก ${remainingCamps} ค่ายถึง ${carried.toLocaleString()} ฿ การจำลองงบอยู่ในเกณฑ์ปลอดภัย`;
+            }
+        }
+
+        function resetSimulation() {
+            document.getElementById('sim-future-income-input').value = "0";
+            document.getElementById('sim-min-priority').value = "0";
+            
+            allRequestsData.forEach(req => {
+                if (req.budget_items) {
+                    req.budget_items.forEach(item => {
+                        itemSelectionState[item.id] = true;
+                        itemCustomPrices[item.id] = parseFloat(item.total_price) || (parseFloat(item.quantity) * parseFloat(item.unit_price)) || 0;
+                        const priceInput = document.getElementById(`item-price-${item.id}`);
+                        if (priceInput) priceInput.value = itemCustomPrices[item.id];
+                    });
+                }
+            });
+
+            const container = document.getElementById('topics-accordion-container');
+            if (container) delete container.dataset.rendered;
+
+            runSimulation();
+        }
+    </script>
+</body>
+</html>
