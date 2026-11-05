@@ -4,7 +4,7 @@ let allRequests = [];
 let filteredRequests = [];
 let departmentBudgets = {};
 
-// ตัวแปรสำหรับเก็บยอดรวมเพื่อใช้ในเครื่องคิดเลข
+// ตัวแปร Global สำหรับเก็บค่าคำนวณในแผงเครื่องคิดเลข
 window.globalReqTotal = 0;
 window.globalSavedTotal = 0;
 window.globalNetTotal = 0;
@@ -40,6 +40,7 @@ window.fetchAdminBudgets = async function() {
             budgetData.forEach(b => departmentBudgets[b.department] = parseFloat(b.ceiling_amount) || 0);
         }
 
+        // ดึงแฟ้มทั้งหมดและรายการของแต่ละแฟ้มมาจากฐานข้อมูลจริง
         const { data, error } = await supabaseClient
             .from('budget_requests')
             .select(`*, owner:profiles!owner_id(full_name), budget_items(*)`)
@@ -88,47 +89,41 @@ function updateSummary() {
     let sumAllGross = 0;      // ยอดขอตั้งต้นทั้งหมด
     let sumApprovedNet = 0;   // ยอดที่อนุมัติแล้ว (สุทธิ)
     let sumPendingNet = 0;    // ยอดที่รอตรวจ (สุทธิ)
-    let sumTotalSaved = 0;    // ยอดที่ประหยัดได้ทั้งหมด (ส่วนลด + ปฏิเสธ)
+    let sumTotalSaved = 0;    // ยอดที่ตัดออก/ประหยัดได้ทั้งหมด
 
+    // ดึงข้อมูล "ตัวเลขจริงๆ จากฐานข้อมูล" ที่ถูกประมวลผลก่อนหน้ามาสรุป
     submitted.forEach(req => {
         if (req.budget_items) {
             req.budget_items.forEach(item => {
                 const qty = parseFloat(item.quantity) || 0;
                 const price = parseFloat(item.unit_price) || 0;
                 const gross = qty * price;
-                const net = parseFloat(item.total_price) || 0;
+                
+                const isDenied = item.item_status === 'denied';
+                const net = isDenied ? 0 : (parseFloat(item.total_price) || 0);
+                const saved = gross - net;
 
                 sumAllGross += gross;
+                sumTotalSaved += saved;
 
-                if (item.item_status === 'approved') {
-                    sumApprovedNet += net;
-                    sumTotalSaved += (gross - net); // เอาส่วนลดมาคิดเป็นยอดประหยัด
-                } else if (item.item_status === 'denied') {
-                    sumTotalSaved += gross; // ปฏิเสธคือประหยัดได้เต็มจำนวน
-                } else {
-                    sumPendingNet += net;
-                    sumTotalSaved += (gross - net);
-                }
+                if (item.item_status === 'approved') sumApprovedNet += net;
+                else if (item.item_status === 'pending') sumPendingNet += net;
             });
         }
     });
 
-    // อัปเดตตัวแปร Global เพื่อใช้ในเครื่องคิดเลข
     window.globalReqTotal = sumAllGross;
     window.globalSavedTotal = sumTotalSaved;
     window.globalNetTotal = sumApprovedNet + sumPendingNet;
 
-    // อัปเดตการ์ดสรุปยอด
     if(document.getElementById('sum-all')) document.getElementById('sum-all').innerText = sumAllGross.toLocaleString('th-TH') + ' ฿';
     if(document.getElementById('sum-approved')) document.getElementById('sum-approved').innerText = sumApprovedNet.toLocaleString('th-TH') + ' ฿';
     if(document.getElementById('sum-denied')) document.getElementById('sum-denied').innerText = sumTotalSaved.toLocaleString('th-TH') + ' ฿';
     if(document.getElementById('sum-pending')) document.getElementById('sum-pending').innerText = sumPendingNet.toLocaleString('th-TH') + ' ฿';
 
-    // อัปเดตเครื่องคิดเลข
     calculateTempBudget();
 }
 
-// ฟังก์ชันเครื่องคิดเลขทดลองวงเงินรวม
 window.calculateTempBudget = function() {
     const inputEl = document.getElementById('temp-budget-input');
     if (!inputEl) return;
@@ -146,11 +141,25 @@ window.calculateTempBudget = function() {
         if (balance < 0) {
             balEl.className = "text-sm font-extrabold text-red-600 mt-0.5";
         } else {
-            balEl.className = "text-sm font-extrabold text-purple-600 mt-0.5";
+            balEl.className = "text-sm font-extrabold text-indigo-600 mt-0.5";
         }
     } else {
         balEl.innerText = '-';
         balEl.className = "text-sm font-extrabold text-gray-400 mt-0.5";
+    }
+}
+
+// ระบบ Toggle เปิด/ปิด แฟ้ม
+window.toggleFolder = function(reqId) {
+    const content = document.getElementById(`items-${reqId}`);
+    const icon = document.getElementById(`icon-${reqId}`);
+    
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        icon.style.transform = 'rotate(180deg)';
+    } else {
+        content.classList.add('hidden');
+        icon.style.transform = 'rotate(0deg)';
     }
 }
 
@@ -169,10 +178,9 @@ function renderRequests() {
         let deptUsedTotal = 0; 
         
         let reqOriginalGross = 0; // ยอดขอตั้งต้นของแฟ้มนี้
-        let reqTotalNet = 0;      // ยอดอนุมัติสุทธิของแฟ้มนี้
-        let reqSaved = 0;         // ยอดที่ประหยัดได้ของแฟ้มนี้
+        let reqTotalNet = 0;      // ยอดสุทธิของแฟ้มนี้
+        let reqSaved = 0;         // ยอดที่ตัดออกของแฟ้มนี้
 
-        // 1. คำนวณยอดที่ฝ่ายใช้ไปแล้วทั้งหมด (เอามาเทียบเพดาน)
         allRequests.filter(r => r.department === req.department).forEach(r => {
             if (r.budget_items) {
                 r.budget_items.forEach(i => {
@@ -183,7 +191,6 @@ function renderRequests() {
             }
         });
 
-        // 2. เรนเดอร์รายการและคำนวณยอดเฉพาะแฟ้มนี้
         if (req.budget_items && req.budget_items.length > 0) {
             const sortedItems = req.budget_items.sort((a, b) => b.priority_level - a.priority_level);
             
@@ -197,11 +204,9 @@ function renderRequests() {
                 reqOriginalGross += gross;
                 reqTotalNet += net;
 
-                const discountText = item.discount > 0 ? `<span class="text-red-500 ml-1 bg-red-50 px-1 rounded">-ลด ${parseFloat(item.discount).toLocaleString()} ฿</span>` : '';
+                const discountText = item.discount > 0 && !isDenied ? `<span class="text-red-500 ml-1 bg-red-50 px-1 rounded">-ลด ${parseFloat(item.discount).toLocaleString()} ฿</span>` : '';
                 
-                if (item.item_status === 'pending') {
-                    folderPendingTotal += net;
-                }
+                if (item.item_status === 'pending') folderPendingTotal += net;
                 
                 let actionBtns = '';
                 if (item.item_status === 'pending') {
@@ -223,13 +228,13 @@ function renderRequests() {
                     <div class="flex-1 pr-2">
                         <p class="text-sm font-bold text-gray-700 flex items-center gap-1.5">
                             <span class="text-[10px] bg-pink-50 text-pink-600 border border-pink-100 px-1.5 py-0.5 rounded flex items-center gap-0.5"><i data-lucide="heart" class="w-2.5 h-2.5 fill-current"></i> ${item.priority_level}</span>
-                            ${isDenied ? `<s>${item.item_name}</s>` : item.item_name}
+                            ${isDenied ? `<s class="text-red-500">${item.item_name}</s>` : item.item_name}
                         </p>
                         <p class="text-xs text-gray-500 mt-1">${qty} x ${price.toLocaleString()} ฿ ${discountText}</p>
                         ${item.remark ? `<p class="text-[11px] text-gray-600 mt-1.5 bg-yellow-50/50 p-2 rounded-lg border border-yellow-100"><b>โน้ต:</b> ${item.remark.replace(/\n/g, '<br>')}</p>` : ''}
                     </div>
                     <div class="text-right shrink-0">
-                        <p class="text-sm font-extrabold text-gray-800 mb-2">${parseFloat(item.total_price).toLocaleString()} ฿</p>
+                        <p class="text-sm font-extrabold text-gray-800 mb-2">${net.toLocaleString()} ฿</p>
                         <div class="flex flex-col gap-1.5 items-end">
                             <div class="flex gap-1.5">${actionBtns}</div>
                             <button onclick="openAdminEdit('${item.id}')" class="text-[10px] text-indigo-600 font-bold bg-indigo-50 border border-indigo-100 px-2 py-1 rounded-lg hover:bg-indigo-100 transition shadow-sm mt-1">แก้ราคา</button>
@@ -243,7 +248,6 @@ function renderRequests() {
 
         reqSaved = reqOriginalGross - reqTotalNet;
 
-        // 3. วิเคราะห์ความพร้อมและสร้างแถบ Progress 
         let folderProgressHtml = '';
         const deptCeiling = departmentBudgets[req.department] || 0;
         
@@ -294,13 +298,13 @@ function renderRequests() {
             ? '<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold border border-blue-200">รอตรวจ</span>'
             : '<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs font-bold border border-emerald-200">ตรวจแล้ว</span>';
 
-        // เช็คว่าย่อแฟ้มหรือกางแฟ้ม (ถ้าตรวจแล้วให้ย่อเป็น Default)
+        // เช็คว่าย่อแฟ้ม (ถ้าสถานะ reviewed ให้ย่อแฟ้มอัตโนมัติ)
         const isCollapsed = req.status === 'reviewed';
         
         const card = document.createElement('div');
-        card.className = "bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-5";
+        card.className = "bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-5 transition-all duration-300";
         card.innerHTML = `
-            <div class="bg-gray-50 p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors" onclick="document.getElementById('items-${req.id}').classList.toggle('hidden')">
+            <div class="bg-gray-50 p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors" onclick="toggleFolder('${req.id}')">
                 <div class="flex justify-between items-start">
                     <div class="flex-1">
                         <div class="flex items-center gap-2 mb-1.5">
@@ -309,18 +313,17 @@ function renderRequests() {
                         </div>
                         <h3 class="font-bold text-gray-900 text-base leading-tight flex items-center gap-2">
                             ${req.topic_name}
-                            <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400"></i>
                         </h3>
                         <p class="text-[11px] text-gray-500 mt-1">ผู้เสนอ: ${req.owner?.full_name}</p>
                         
                         <div class="flex items-center gap-3 mt-2 text-[11px] font-medium bg-white p-2 rounded-lg border border-gray-100 inline-flex shadow-sm">
-                            <span class="text-gray-500">ตั้งต้น: <br class="sm:hidden">${reqOriginalGross.toLocaleString()} ฿</span>
-                            <span class="text-red-500 border-l border-gray-200 pl-3">ลด/ตัด: <br class="sm:hidden">-${reqSaved.toLocaleString()} ฿</span>
+                            <span class="text-gray-500">ยอดตั้งต้น: <br class="sm:hidden">${reqOriginalGross.toLocaleString()} ฿</span>
+                            <span class="text-red-500 border-l border-gray-200 pl-3">ตัดออก: <br class="sm:hidden">-${reqSaved.toLocaleString()} ฿</span>
                         </div>
                     </div>
                     <div class="text-right shrink-0 ml-2">
                         <span class="block text-xl font-extrabold text-emerald-600">${reqTotalNet.toLocaleString()} ฿</span>
-                        <span class="text-[10px] text-gray-400">ยอดอนุมัติสุทธิ</span>
+                        <span class="text-[10px] text-gray-400 flex items-center justify-end gap-1 mt-0.5">ยอดสุทธิ <i id="icon-${req.id}" data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-300 ${isCollapsed ? '' : 'rotate-180'}"></i></span>
                     </div>
                 </div>
             </div>
@@ -330,7 +333,7 @@ function renderRequests() {
                 </div>
                 ${req.status === 'pending' ? `
                 <div class="p-3 bg-gray-50 border-t border-gray-100">
-                    <button onclick="markRequestReviewed('${req.id}')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-bold shadow-sm transition">ตรวจแฟ้มนี้เสร็จสิ้น</button>
+                    <button onclick="markRequestReviewed('${req.id}')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-bold shadow-sm transition flex justify-center items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4"></i> ตรวจแฟ้มนี้เสร็จสิ้น</button>
                 </div>
                 ` : ''}
             </div>
@@ -354,10 +357,6 @@ window.markRequestReviewed = async (reqId) => {
     fetchAdminBudgets();
     Swal.fire({ title: 'บันทึกสำเร็จ', icon: 'success', timer: 1500, showConfirmButton: false });
 }
-
-// ==========================================
-// เครื่องมือ Hard-Edit พร้อม What-If และ Progress Bar
-// ==========================================
 
 window.adminCalcTotal = function() {
     const qty = parseFloat(document.getElementById('admin-qty').value) || 0;
@@ -472,7 +471,7 @@ async function handleAdminSave(e) {
         discount: discount,
         total_price: total,
         remark: finalRemark,
-        item_status: 'approved'
+        item_status: 'approved' // เมื่อแก้ราคาแล้ว ถือว่าอนุมัติเลย
     };
 
     const { error } = await supabaseClient.from('budget_items').update(payload).eq('id', itemId);
