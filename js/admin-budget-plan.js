@@ -461,8 +461,8 @@ async function handleAdminSave(e) {
     let selectedItem = null;
     allRequests.forEach(req => { if (req.budget_items) { const item = req.budget_items.find(i => i.id === itemId); if (item) selectedItem = item; }});
     
-    if (selectedItem && inputRemark !== selectedItem.remark && !inputRemark.includes('[แอดมิน]')) {
-        finalRemark = (selectedItem.remark ? selectedItem.remark + '\n\n' : '') + `[แอดมิน]: ${inputRemark.replace(selectedItem.remark || '', '').trim()}`;
+    if (selectedItem && inputRemark !== selectedItem.remark && !inputRemark.includes('[เหรัญญิกตอบกลับ]')) {
+        finalRemark = (selectedItem.remark ? selectedItem.remark + '\n\n' : '') + `[เหรัญญิกตอบกลับ]: ${inputRemark.replace(selectedItem.remark || '', '').trim()}`;
     }
     
     const payload = {
